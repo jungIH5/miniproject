@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+
+<html lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>얼굴 분석 &amp; 뷰티 추천 대시보드</title>
+<!-- Tailwind CSS v3 CDN -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts for professional look -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&amp;display=swap" rel="stylesheet"/>
+<style data-purpose="global-typography">
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      background-color: #fcfaf8;
+    }
+  </style>
+<style data-purpose="layout-styling">
+    .custom-scrollbar::-webkit-scrollbar {
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #e2e8f0;
+      border-radius: 10px;
+    }
+    .glass-effect {
+      background: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(10px);
+    }
+  </style>
+</head>
+<body class="text-slate-800">
+<!-- BEGIN: MainContainer -->
+<main class="max-w-7xl mx-auto px-4 py-8 lg:py-12">
+<!-- Header Section -->
+<header class="mb-10 text-center">
+<h1 class="text-3xl font-bold text-slate-900 mb-2">Face Analysis &amp; Beauty Recommendation</h1>
+<p class="text-slate-500">AI 기술로 당신의 피부 타입을 정밀 분석하고 최적의 제품을 추천해 드립니다.</p>
+</header>
+<!-- BEGIN: User Info Profile Card -->
+<section class="mb-8" data-purpose="user-info-section">
+<div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
+<div class="flex flex-col md:flex-row items-start md:items-center gap-6">
+<div class="flex-shrink-0 w-20 h-20 rounded-2xl bg-slate-50 flex items-center justify-center border border-slate-100 text-slate-400">
+<svg class="w-10 h-10" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path></svg>
+</div>
+<div class="flex-grow grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+<div class="space-y-1">
+<label class="block text-xs font-bold text-slate-400 uppercase tracking-wider">이름 (Name)</label>
+<input class="w-full border-0 border-b border-slate-200 focus:ring-0 focus:border-indigo-500 p-0 py-1 text-slate-900 font-medium placeholder-slate-300 transition-colors bg-transparent" placeholder="이름을 입력하세요" type="text"/>
+</div>
+<div class="space-y-1">
+<label class="block text-xs font-bold text-slate-400 uppercase tracking-wider">연령대 (Age)</label>
+<select class="w-full border-0 border-b border-slate-200 focus:ring-0 focus:border-indigo-500 p-0 py-1 text-slate-900 font-medium transition-colors bg-transparent">
+<option>10대</option>
+<option selected="">20대</option>
+<option>30대</option>
+<option>40대</option>
+<option>50대 이상</option>
+</select>
+</div>
+<div class="space-y-1">
+<label class="block text-xs font-bold text-slate-400 uppercase tracking-wider">성별 (Gender)</label>
+<div class="flex items-center gap-4 py-1">
+<label class="inline-flex items-center">
+<input checked="" class="text-indigo-600 focus:ring-indigo-500 border-slate-300" name="gender" type="radio"/>
+<span class="ml-2 text-sm">여성</span>
+</label>
+<label class="inline-flex items-center">
+<input class="text-indigo-600 focus:ring-indigo-500 border-slate-300" name="gender" type="radio"/>
+<span class="ml-2 text-sm">남성</span>
+</label>
+<label class="inline-flex items-center">
+<input class="text-indigo-600 focus:ring-indigo-500 border-slate-300" name="gender" type="radio"/>
+<span class="ml-2 text-sm">기타</span>
+</label>
+</div>
+</div>
+<div class="space-y-1">
+<label class="block text-xs font-bold text-slate-400 uppercase tracking-wider">평소 피부 타입 (Skin Type)</label>
+<select class="w-full border-0 border-b border-slate-200 focus:ring-0 focus:border-indigo-500 p-0 py-1 text-slate-900 font-medium transition-colors bg-transparent">
+<option>건성 (Dry)</option>
+<option>지성 (Oily)</option>
+<option selected="">복합성 (Combination)</option>
+<option>민감성 (Sensitive)</option>
+</select>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- END: User Info Profile Card -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+<!-- BEGIN: LeftColumn (Camera Feed) -->
+<section class="lg:col-span-7 flex flex-col gap-6" data-purpose="camera-capture-section">
+<div class="relative overflow-hidden rounded-3xl bg-slate-900 shadow-2xl aspect-[4/3] flex items-center justify-center">
+<!-- Live Camera Feed Placeholder -->
+<img alt="Camera Feed" class="w-full h-full object-cover opacity-80" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCqJZqRRPy6rMDcCZIkOX0UZvFucRJFSSjfxT0AvrmcwiZcVRCmvLuEOIsH746WZZSLJjG3HFg3_Y_EQ4x_oMQvFGvYw0sesJO5tCM-2hU7TyI7KiE5MFVIvbpSMpKwDcGAM3eP3Cqvdtha1YdqURbeTe_hs_Ik-NGsI_5EDxzMKF70VguOa9YUQvw1mkhs2lr52wBsAH1X01HsKrkOtk8f0JFUj7ndne5YSj901qUaxBuD5MF9EVAjeqXN6LGEDCfvxVi_F2wCNDI"/>
+<!-- Camera UI Overlays -->
+<div class="absolute inset-0 border-[20px] border-black/10 pointer-events-none"></div>
+<div class="absolute top-6 left-6 flex items-center gap-2 px-3 py-1.5 bg-red-500 rounded-full text-white text-xs font-bold animate-pulse">
+<span class="w-2 h-2 bg-white rounded-full"></span> LIVE
+          </div>
+<div class="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-4">
+<button class="w-16 h-16 rounded-full bg-white border-4 border-slate-300 flex items-center justify-center hover:scale-110 transition-transform shadow-lg" title="Capture">
+<div class="w-12 h-12 rounded-full bg-slate-100 border border-slate-200"></div>
+</button>
+<span class="text-white text-sm font-medium drop-shadow-md">화면 중앙에 얼굴을 맞춰주세요</span>
+</div>
+</div>
+<button class="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold text-lg hover:bg-slate-800 transition-colors shadow-xl" data-purpose="primary-action">
+          분석하기 (Analyze Now)
+        </button>
+</section>
+<!-- END: LeftColumn -->
+<!-- BEGIN: RightColumn (Analysis & Results) -->
+<aside class="lg:col-span-5 flex flex-col gap-6" data-purpose="analysis-dashboard">
+<!-- BEGIN: AnalysisResults (Sliders) -->
+<div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100" data-purpose="analysis-sliders">
+<h2 class="text-lg font-bold mb-6 flex items-center gap-2">
+<svg class="w-5 h-5 text-slate-700" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+            피부 정밀 분석 수치
+          </h2>
+<div class="space-y-6">
+<!-- Brightness -->
+<div class="space-y-2">
+<div class="flex justify-between text-sm font-medium">
+<span>밝기 (Brightness)</span>
+<span class="text-indigo-600">72%</span>
+</div>
+<input class="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-slate-900" type="range" value="72"/>
+</div>
+<!-- Warm/Cool Tone -->
+<div class="space-y-2">
+<div class="flex justify-between text-sm font-medium">
+<span>웜/쿨 톤 (Tone)</span>
+<span class="text-indigo-600">Cool 65%</span>
+</div>
+<input class="w-full h-2 bg-gradient-to-r from-orange-200 to-blue-200 rounded-lg appearance-none cursor-pointer accent-indigo-400" type="range" value="65"/>
+</div>
+<!-- Saturation -->
+<div class="space-y-2">
+<div class="flex justify-between text-sm font-medium">
+<span>채도 (Saturation)</span>
+<span class="text-indigo-600">45%</span>
+</div>
+<input class="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-slate-900" type="range" value="45"/>
+</div>
+<!-- Redness -->
+<div class="space-y-2">
+<div class="flex justify-between text-sm font-medium">
+<span>붉은끼 (Redness)</span>
+<span class="text-indigo-600">28%</span>
+</div>
+<input class="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-red-400" type="range" value="28"/>
+</div>
+<!-- Skin Texture -->
+<div class="space-y-2">
+<div class="flex justify-between text-sm font-medium">
+<span>피부결 (Texture)</span>
+<span class="text-indigo-600">매끄러움</span>
+</div>
+<input class="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-slate-900" type="range" value="85"/>
+</div>
+</div>
+</div>
+<!-- END: AnalysisResults -->
+<!-- BEGIN: AI Summary Card -->
+<div class="bg-indigo-50 p-6 rounded-3xl border border-indigo-100" data-purpose="ai-summary">
+<h2 class="text-sm font-bold text-indigo-900 uppercase tracking-wider mb-2">AI Analysis Result</h2>
+<p class="text-indigo-800 leading-relaxed">
+            분석 결과, 고객님은 <span class="font-bold">쿨톤 베이스</span>의 피부톤을 가지고 계시며, 
+            T존 부위에 비해 볼 주변이 <span class="font-bold">약간 건조한 상태</span>입니다. 
+            피부결은 전반적으로 양호하나 수분 보충이 필요해 보입니다.
+          </p>
+</div>
+<!-- END: AI Summary Card -->
+</aside>
+<!-- END: RightColumn -->
+</div>
+<!-- BEGIN: RecommendedProductsSection -->
+<section class="mt-12" data-purpose="product-recommendations">
+<div class="flex items-center justify-between mb-6">
+<h2 class="text-2xl font-bold text-slate-900">맞춤형 추천 제품</h2>
+<a class="text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors" href="#">전체보기 →</a>
+</div>
+<div class="flex overflow-x-auto gap-6 pb-6 custom-scrollbar" data-purpose="product-grid">
+<!-- Product Card 1 -->
+<div class="min-w-[240px] flex-shrink-0 group bg-white p-4 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow cursor-pointer">
+<div class="aspect-square bg-slate-50 rounded-xl mb-4 overflow-hidden">
+<img alt="수분 크림" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDysx5WYr1GGnMmkwd9E4Ly7Rd79aVYNLA25cV2olkZRTvS884MsS_Psw46u5CQZdMNPgoBaOZv0TsSPl-_KdmkvnjDJ4IspSSaEuyK_KmM43IsKVmqmUwN-PoUTLysPylec53cZl10Wwvfwf2BTXEuNwNZsrVlATcrsiTRtJDya5MYSm_41SE5mYgnqK2qGkVog28xCoifmi01bYO3zdI8WlK27FGc4cFQ_QjQob0E7-jZKW8L8fU2g95DrQs3xK0ZdIsR9eePAAk"/>
+</div>
+<h3 class="font-bold text-slate-900 mb-1">히알루론산 수분 크림</h3>
+<p class="text-sm text-slate-500 mb-3">건조한 볼 부위 집중 케어</p>
+<div class="flex justify-between items-center">
+<span class="text-lg font-bold text-slate-900">₩32,000</span>
+<button class="p-2 rounded-full bg-slate-900 text-white hover:bg-slate-700 transition-colors">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+</div>
+</div>
+<!-- Product Card 2 -->
+<div class="min-w-[240px] flex-shrink-0 group bg-white p-4 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow cursor-pointer">
+<div class="aspect-square bg-slate-50 rounded-xl mb-4 overflow-hidden">
+<img alt="진정 미스트" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDVUkocLMGNXIBfF4XCNt6dleh9qMGOO3Nv424vlxeORCOccnSQPq8HqJKySUfjfjCYgmyCj3owZFoHIQekJ0kxBF-c6YLw6hy5B3Gya_sjYijY5bzM5xJ2-spgsCGuJmX1VrFFvTimbaNW4LOREcsZJwcguqyWb6qOQ2BIlGHgArLaCnv3IsJ5nLmGj-CvXctmcOImVT7UZAWAM0SXQ3Be7CCdDxzSmPRhTCwX7cqXfGIxboKO6AYOhEGaRfkOkKQ2SgDEpgsIpJc"/>
+</div>
+<h3 class="font-bold text-slate-900 mb-1">진정 수딩 쿨링 미스트</h3>
+<p class="text-sm text-slate-500 mb-3">열감 완화 및 쿨톤 피부 유지</p>
+<div class="flex justify-between items-center">
+<span class="text-lg font-bold text-slate-900">₩18,500</span>
+<button class="p-2 rounded-full bg-slate-900 text-white hover:bg-slate-700 transition-colors">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+</div>
+</div>
+<!-- Product Card 3 -->
+<div class="min-w-[240px] flex-shrink-0 group bg-white p-4 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow cursor-pointer">
+<div class="aspect-square bg-slate-50 rounded-xl mb-4 overflow-hidden">
+<img alt="비타 세럼" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBx7ZzPI7x-_-ghknGzkNRPnbKdEhIbIcdxk6W7bNle6tjTjYhLuwrMfVYdJKtvp_6OS3Vfy35r4KJdpSALIvUOEFstihsOy2pxnmwHFVFQva1j8HikgkbKurYtvpcchU1g0HwILqfPKHKc_9R6wTcKs3Ardh9pvAvm_Texj2niQEYUKyH_yhJiACW3YVK8-qA_uDRC6oBW7M6aCQhQG1M0OZ9oCRM56pIQsmy4RPHiyDREZJfmRqBu4Hemo8mTMGwVZbHwkgIZuNs"/>
+</div>
+<h3 class="font-bold text-slate-900 mb-1">고농축 비타민 C 세럼</h3>
+<p class="text-sm text-slate-500 mb-3">피부 밝기 개선 및 항산화</p>
+<div class="flex justify-between items-center">
+<span class="text-lg font-bold text-slate-900">₩45,000</span>
+<button class="p-2 rounded-full bg-slate-900 text-white hover:bg-slate-700 transition-colors">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" stroke_linecap="round" stroke_linejoin="round" stroke_width="2"></path></svg>
+</button>
+</div>
+</div>
+<!-- Product Card 4 -->
+<div class="min-w-[240px] flex-shrink-0 group bg-white p-4 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow cursor-pointer">
+<div class="aspect-square bg-slate-50 rounded-xl mb-4 overflow-hidden">
+<img alt="나이트 리페어" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAVuGY61Wio6MD-TJCf0FPg0l0FZwnGIGvlQin93Q607u7O9y5xOXuTaTjlZs5faWY9m-W2L326Gg64gNB9EyK4mG2uNjLg85ZTaxd84Tmc_R8aGtLJd-9fjzzgKllB9by10_Q7uarzWhpP91kDkBBIfwMPBIolucCduu_aAvvAQwlp3CYuJscmuI8w5dBrzRzIIiPr-5f3SFHpLZ8Y__2pX5sogN8QIn0ma2L6VWdkJY1jmb3-RJLX_QTi3fYyvcTQhsYPi0u92YU"/>
+</div>
+<h3 class="font-bold text-slate-900 mb-1">리페어 나이트 앰플</h3>
+<p class="text-sm text-slate-500 mb-3">거친 피부결 정돈 및 영양</p>
+<div class="flex justify-between items-center">
+<span class="text-lg font-bold text-slate-900">₩58,000</span>
+<button class="p-2 rounded-full bg-slate-900 text-white hover:bg-slate-700 transition-colors">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- END: RecommendedProductsSection -->
+</main>
+<!-- END: MainContainer -->
+<footer class="mt-12 py-8 bg-slate-50 border-t border-slate-200">
+<div class="max-w-7xl mx-auto px-4 text-center">
+<p class="text-slate-400 text-xs">© 2024 BeautyTech Inc. AI 기반 분석 결과는 의학적 진단을 대체하지 않습니다.</p>
+</div>
+</footer>
+</body></html>
