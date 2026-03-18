@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Mini Web Application
 
 Flask, HTML/JavaScript, MySQL, and Docker based starter project.
@@ -40,9 +39,3 @@ Dockerfile
 docker-compose.yml
 requirements.txt
 ```
-=======
-## 뷰티 컨설팅 프로젝트
-# 2026-03-18 오전 11:49 테스트
-hello
-world
->>>>>>> 54cdd220790a3058547fe84029bb55d56c860e7d
