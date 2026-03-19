@@ -382,20 +382,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
     $grid.innerHTML = products.map(p => {
       const price = Number(p.price).toLocaleString();
-      const brand = p.brand || p.mall || "";
+      const brand = p.brand || "";
+      const mall = p.mall || "";
+      const category = p.category || "";
+
+      // 태그 생성 (빈 값 제외)
+      const tags = [brand, category, mall].filter(t => t).slice(0, 3);
+
       return `
-        <div class="product-card">
+        <a class="product-card" href="${p.link}" target="_blank" rel="noopener">
           <img class="product-card-img" src="${p.image}" alt="${p.title}"
                onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect fill=%22%23f0ecf0%22 width=%22100%22 height=%22100%22/><text x=%2250%22 y=%2255%22 text-anchor=%22middle%22 fill=%22%23b48ed2%22 font-size=%2228%22>🧴</text></svg>'" />
           <div class="product-card-body">
             ${brand ? `<div class="product-brand">${brand}</div>` : ""}
             <div class="product-title">${p.title}</div>
-            <div class="product-bottom">
-              <span class="product-price">₩${price}</span>
-              <a class="product-link" href="${p.link}" target="_blank" rel="noopener">구매하기</a>
+            <div class="product-price">₩${price}</div>
+            <div class="product-tags">
+              ${tags.map(t => `<span class="product-tag">${t}</span>`).join("")}
             </div>
           </div>
-        </div>
+        </a>
       `;
     }).join("");
   }
@@ -414,4 +420,117 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
     svg.prepend(defs);
   }
+
+  // ============================================================
+  //  제미나이 AI 챗봇
+  // ============================================================
+  const $chatModal = document.getElementById("chat-modal");
+  const $btnOpenChat = document.getElementById("btn-open-chat");
+  const $chatClose = document.getElementById("chat-close");
+  const $chatMessages = document.getElementById("chat-messages");
+  const $chatInput = document.getElementById("chat-input");
+  const $btnSendChat = document.getElementById("btn-send-chat");
+  const $chatOverlay = document.getElementById("chat-overlay");
+
+  let chatHistory = [];
+  
+  // 현재 진단 결과를 문자열로 변환하여 제미나이에게 전달할 컨텍스트 생성
+  function getDiagnosisContext() {
+    const pcSeason = document.getElementById("color-season")?.textContent;
+    const skScore = document.getElementById("score-number")?.textContent;
+    if (!pcSeason || pcSeason === "-") return "아직 진단 결과가 없습니다.";
+    
+    return `퍼스널컬러 진단 결과: ${pcSeason}\n피부 상태 점수: ${skScore}점\n위 결과를 바탕으로 사용자의 질문에 답해주세요.`;
+  }
+
+  function appendMessage(role, text) {
+    const isUser = role === "user";
+    const div = document.createElement("div");
+    div.className = `chat-msg ${isUser ? "chat-user" : "chat-ai"}`;
+    // 간단한 마크다운 문법 (굵게, 줄바꿈) 처리
+    let formattedText = text.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+    formattedText = formattedText.replace(/\n/g, "<br>");
+    div.innerHTML = formattedText;
+    
+    $chatMessages.appendChild(div);
+    $chatMessages.scrollTop = $chatMessages.scrollHeight;
+  }
+
+  function openChat() {
+    $chatModal.classList.remove("hidden");
+    if (chatHistory.length === 0) {
+      $chatMessages.innerHTML = "";
+      appendMessage("model", "안녕하세요! ✨\n진단하신 뷰티/피부 결과를 바탕으로 맞춤 화장품, 코디법, 스킨케어 팁에 대해 자유롭게 물어보세요!");
+    }
+  }
+
+  function closeChat() {
+    $chatModal.classList.add("hidden");
+  }
+
+  async function sendChatMessage() {
+    const text = $chatInput.value.trim();
+    if (!text) return;
+
+    appendMessage("user", text);
+    $chatInput.value = "";
+    $chatInput.disabled = true;
+    $btnSendChat.disabled = true;
+
+    const loadingId = "loading-" + Date.now();
+    const loadingDiv = document.createElement("div");
+    loadingDiv.id = loadingId;
+    loadingDiv.className = "chat-msg chat-ai";
+    loadingDiv.innerHTML = "<span style='color: var(--text-muted)'>답변 작성중... 💭</span>";
+    $chatMessages.appendChild(loadingDiv);
+    $chatMessages.scrollTop = $chatMessages.scrollHeight;
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: text,
+          context: getDiagnosisContext(),
+          history: chatHistory
+        })
+      });
+      
+      const data = await res.json();
+      document.getElementById(loadingId).remove();
+
+      if (!data.success) {
+        appendMessage("model", "⚠️ " + (data.error || "응답 오류가 발생했습니다. 제미나이 API 키를 확인해주세요."));
+        return;
+      }
+
+      appendMessage("model", data.response);
+      chatHistory.push({ role: "user", text: text });
+      chatHistory.push({ role: "model", text: data.response });
+
+    } catch (e) {
+      document.getElementById(loadingId)?.remove();
+      appendMessage("model", "⚠️ 네트워크 오류가 발생했습니다.");
+    } finally {
+      $chatInput.disabled = false;
+      $btnSendChat.disabled = false;
+      $chatInput.focus();
+    }
+  }
+
+  if ($btnOpenChat) $btnOpenChat.addEventListener("click", openChat);
+  if ($chatClose) $chatClose.addEventListener("click", closeChat);
+  if ($chatOverlay) $chatOverlay.addEventListener("click", closeChat);
+  
+  if ($btnSendChat) $btnSendChat.addEventListener("click", sendChatMessage);
+  if ($chatInput) {
+    $chatInput.addEventListener("keydown", (e) => {
+      // 한글 입력 중 엔터 눌림 방지를 위해 isComposing 확인
+      if (e.key === "Enter" && !e.isComposing) {
+        e.preventDefault();
+        sendChatMessage();
+      }
+    });
+  }
+
 });

@@ -162,6 +162,13 @@
 
       <!-- 분석 방법 안내 -->
       <div class="analysis-method-note" id="method-note"></div>
+
+      <!-- AI 상담 버튼 -->
+      <div class="chat-action-section">
+        <button id="btn-open-chat" class="btn btn-primary" type="button" style="width: 100%; margin-top: 10px;">
+          ✨ AI 뷰티 컨설턴트에게 상담받기
+        </button>
+      </div>
     </div>
   </section>
 
@@ -191,6 +198,27 @@
       </div>
     </div>
     <canvas id="camera-canvas" hidden></canvas>
+  </div>
+
+  <!-- ====== 제미나이 AI 챗봇 모달 ====== -->
+  <div id="chat-modal" class="camera-modal hidden">
+    <div class="camera-overlay" id="chat-overlay"></div>
+    <div class="chat-container">
+      <div class="chat-header">
+        <div class="chat-title">
+          <span style="font-size: 1.2rem;">✨</span> 
+          <span>AI 뷰티 컨설턴트</span>
+        </div>
+        <button id="chat-close" class="btn btn-ghost" type="button" aria-label="닫기">✕</button>
+      </div>
+      <div class="chat-messages" id="chat-messages">
+        <!-- 메시지가 여기에 동적으로 추가됩니다 -->
+      </div>
+      <div class="chat-input-area">
+        <input type="text" id="chat-input" class="file-label" style="flex:1; cursor:text" placeholder="궁금한 점을 물어보세요! (예: 봄웜한테 어울리는 염색 추천해줘)" />
+        <button id="btn-send-chat" class="btn btn-primary" style="padding: 12px 16px;">전송</button>
+      </div>
+    </div>
   </div>
 
   <!-- ====== 푸터 ====== -->

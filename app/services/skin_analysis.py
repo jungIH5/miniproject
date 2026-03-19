@@ -1,65 +1,186 @@
 """피부 상태 분석 서비스
 
-기본적인 이미지 분석(밝기·균일도·붉은기·피부결·수분도·유분)으로
-피부 상태를 진단합니다.
-외부 딥러닝 API 결과가 있으면 해당 결과를 우선 사용하고,
-없을 때 로컬 분석으로 fallback 합니다.
+기본적인 이미지 분석(밝기·균일도·붉은기·피부결·수분도·유분)으로 피부 상태를 진단합니다.
+CNN 모델(MobileNetV2) 및 MediaPipe 랜드마크 추출을 추가 적용했습니다.
 """
 
+import os
 from io import BytesIO
 
+import cv2
+import mediapipe as mp
 import numpy as np
+import torch
+import torch.nn as nn
 from PIL import Image, ImageFilter
+from torchvision import models, transforms
+
+
+class SkinCNN(nn.Module):
+    """MobileNetV2 기반 피부 상태 분류 모델"""
+    def __init__(self, num_classes=3):
+        super().__init__()
+        self.model = models.mobilenet_v2(weights=None)
+        self.model.classifier[1] = nn.Linear(1280, num_classes)
+
+    def forward(self, x):
+        return self.model(x)
 
 
 class SkinAnalyzer:
+    def __init__(self):
+        self.device = torch.device("cpu")
+        self.model = SkinCNN(num_classes=3)
 
-    # ------------------------------------------------------------------ #
-    #  공개 API                                                           #
-    # ------------------------------------------------------------------ #
-    def analyze(self, image_bytes: bytes) -> dict:
-        """이미지를 분석하여 피부 상태 결과를 반환합니다."""
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        model_path = os.path.join(base_dir, "models", "skin_model.pth")
+        
+        self.model_loaded = False
+        if os.path.exists(model_path):
+            state_dict = torch.load(model_path, map_location=self.device, weights_only=True)
+            first_key = next(iter(state_dict))
+            if not first_key.startswith("model."):
+                state_dict = {f"model.{k}": v for k, v in state_dict.items()}
+            self.model.load_state_dict(state_dict)
+            self.model_loaded = True
+
+        self.model.eval()
+        self.transform = transforms.Compose([
+            transforms.ToPILImage(),
+            transforms.Resize((224, 224)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
+        
+        self.trouble_labels = ["심함", "약간", "없음"]
+        
+        self.mp_face_mesh = None
+        self.face_mesh = None
         try:
+            if hasattr(mp, "solutions"):
+                self.mp_face_mesh = mp.solutions.face_mesh
+                self.face_mesh = self.mp_face_mesh.FaceMesh(
+                    static_image_mode=True, max_num_faces=1, refine_landmarks=False
+                )
+        except Exception as e:
+            print("MediaPipe FaceMesh initialization failed:", e)
+
+    def extract_skin_region_mp(self, frame_bgr, landmarks):
+        """MediaPipe 랜드마크로 볼 영역 크롭"""
+        h, w, _ = frame_bgr.shape
+        cheek_indices = [50, 101, 116, 117, 118, 119, 280, 330, 345, 346, 347, 348]
+        points = []
+        for idx in cheek_indices:
+            if idx >= len(landmarks):
+                continue
+            lm = landmarks[idx]
+            points.append((int(lm.x * w), int(lm.y * h)))
+
+        if not points:
+            return None
+
+        points = np.array(points)
+        x_min, y_min = points.min(axis=0)
+        x_max, y_max = points.max(axis=0)
+
+        pad = 20
+        x_min = max(0, x_min - pad)
+        y_min = max(0, y_min - pad)
+        x_max = min(w, x_max + pad)
+        y_max = min(h, y_max + pad)
+
+        return frame_bgr[y_min:y_max, x_min:x_max]
+
+    def analyze(self, image_bytes: bytes) -> dict:
+        try:
+            # 1) Pillow로 이미지 로드 (기본 방식 유지)
             img = Image.open(BytesIO(image_bytes)).convert("RGB")
             img = img.resize((300, 300))
-
             w, h = img.size
-            skin_region = img.crop((
+
+            # 기본 영역 크롭 (기존 fallback 용)
+            fallback_region = img.crop((
                 int(w * 0.2), int(h * 0.15),
                 int(w * 0.8), int(h * 0.75),
             ))
-            pixels = np.array(skin_region).astype(float)
+            pixels = np.array(fallback_region).astype(float)
+            gray_for_texture = fallback_region.convert("L")
 
-            # 1) 밝기
+            # OpenCV용 프레임 (BGR) 준비
+            frame_rgb = np.array(img)
+            frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+
+            # MediaPipe 처리
+            skin_region_bgr = None
+            if self.face_mesh:
+                results = self.face_mesh.process(frame_rgb)
+                if results.multi_face_landmarks:
+                    face_landmarks = results.multi_face_landmarks[0]
+                    skin_region_bgr = self.extract_skin_region_mp(frame_bgr, face_landmarks.landmark)
+
+            # 만약 MediaPipe 못 썼거나 얼굴 감지 실패했다면 fallback 영역 사용
+            if skin_region_bgr is None or skin_region_bgr.size == 0:
+                # bounding box: fallback_region 좌표
+                x_min, y_min = int(w * 0.2), int(h * 0.15)
+                x_max, y_max = int(w * 0.8), int(h * 0.75)
+                # 프레임 바운더리 검사
+                x_min, y_min = max(0, x_min), max(0, y_min)
+                x_max, y_max = min(w, x_max), min(h, y_max)
+                skin_region_bgr = frame_bgr[y_min:y_max, x_min:x_max]
+
+            # CNN 모델로 트러블/붉은기 점수 계산
+            cnn_trouble_confidence = None
+            cnn_trouble_label = None
+            if self.model_loaded and skin_region_bgr is not None and skin_region_bgr.size > 0:
+                rgb_region = cv2.cvtColor(skin_region_bgr, cv2.COLOR_BGR2RGB)
+                tensor = self.transform(rgb_region).unsqueeze(0).to(self.device)
+                with torch.no_grad():
+                    output = self.model(tensor)
+                    prob = torch.softmax(output, dim=1)
+                    pred = torch.argmax(prob, dim=1).item()
+                    cnn_trouble_confidence = prob[0][pred].item()
+                    cnn_trouble_label = self.trouble_labels[pred]
+
+            # ----------------------------------------------------
+            # 점수 산출
+            # ----------------------------------------------------
+            
+            # (1) 밝기
             brightness_raw = pixels.mean() / 255 * 100
             brightness_score = self._clamp(int(brightness_raw * 1.2))
 
-            # 2) 균일도
+            # (2) 균일도
             std_avg = pixels.std(axis=(0, 1)).mean()
             evenness_score = self._clamp(int(100 - std_avg * 1.5))
 
-            # 3) 붉은기
-            r, g, b = (pixels[:, :, i].mean() for i in range(3))
+            # (3) 붉은기 (트러블)
+            r, g, b = (pixels[:, :, 0].mean(), pixels[:, :, 1].mean(), pixels[:, :, 2].mean())
             redness_ratio = (r - (g + b) / 2) / 255 * 100
-            redness_score = self._clamp(int(100 - redness_ratio * 3))
+            fallback_redness_score = self._clamp(int(100 - redness_ratio * 3))
 
-            # 4) 피부결 (에지 강도 기반)
-            gray = skin_region.convert("L")
-            edge_mean = np.array(gray.filter(ImageFilter.FIND_EDGES)).mean()
+            redness_score = fallback_redness_score
+            if cnn_trouble_label == "심함":
+                redness_score = 30
+            elif cnn_trouble_label == "약간":
+                redness_score = 60
+            elif cnn_trouble_label == "없음":
+                redness_score = 90
+
+            # (4) 피부결 (에지 강도 기반)
+            edge_mean = np.array(gray_for_texture.filter(ImageFilter.FIND_EDGES)).mean()
             texture_score = self._clamp(int(100 - edge_mean * 2))
 
-            # 5) 수분도 추정
+            # (5) 수분도 추정
             moisture_score = self._clamp(int(
                 evenness_score * 0.5
                 + brightness_score * 0.3
                 + texture_score * 0.2
             ))
 
-            # 6) 유분 균형 추정
+            # (6) 유분 균형 추정
             highlight_ratio = (pixels > 200).mean() * 100
             oiliness_score = self._clamp(int(100 - highlight_ratio * 2))
 
-            # 종합 점수
             overall_score = int(
                 brightness_score * 0.15
                 + evenness_score * 0.25
@@ -70,28 +191,23 @@ class SkinAnalyzer:
             )
 
             conditions = {
-                "brightness": self._build_item(
-                    "피부 밝기", brightness_score, self._brightness_detail
-                ),
-                "evenness": self._build_item(
-                    "피부 균일도", evenness_score, self._evenness_detail
-                ),
-                "redness": self._build_item(
-                    "붉은기", redness_score, self._redness_detail
-                ),
-                "texture": self._build_item(
-                    "피부결", texture_score, self._texture_detail
-                ),
-                "moisture": self._build_item(
-                    "수분도", moisture_score, self._moisture_detail
-                ),
-                "oiliness": self._build_item(
-                    "유분 균형", oiliness_score, self._oiliness_detail
-                ),
+                "brightness": self._build_item("피부 밝기", brightness_score, self._brightness_detail),
+                "evenness": self._build_item("피부 균일도", evenness_score, self._evenness_detail),
+                "redness": self._build_item("트러블/붉은기", redness_score, self._redness_detail),
+                "texture": self._build_item("피부결", texture_score, self._texture_detail),
+                "moisture": self._build_item("수분도", moisture_score, self._moisture_detail),
+                "oiliness": self._build_item("유분 균형", oiliness_score, self._oiliness_detail),
             }
 
             skin_type = self._determine_skin_type(conditions)
             recommendations = self._generate_recommendations(conditions)
+
+            # 분석 방식 식별값 추가 (프론트엔드에서 deep_learning_api 를 기대함)
+            analysis_method = "deep_learning_api" if cnn_trouble_label else "basic_image_analysis"
+            
+            # CNN 결과가 있으면 상세 설명 앞부분에 CNN 판별 결과를 명시적으로 추가
+            if cnn_trouble_label:
+                conditions["redness"]["detail"] = f"[CNN 진단: {cnn_trouble_label} ({cnn_trouble_confidence*100:.1f}%)] " + conditions["redness"]["detail"]
 
             return {
                 "success": True,
@@ -99,7 +215,7 @@ class SkinAnalyzer:
                 "skin_type": skin_type,
                 "conditions": conditions,
                 "recommendations": recommendations,
-                "analysis_method": "basic_image_analysis",
+                "analysis_method": analysis_method,
             }
 
         except Exception as e:
@@ -107,6 +223,7 @@ class SkinAnalyzer:
                 "success": False,
                 "error": f"피부 상태 분석 중 오류가 발생했습니다: {e}",
             }
+
 
     # ------------------------------------------------------------------ #
     #  내부 헬퍼                                                          #
@@ -153,10 +270,10 @@ class SkinAnalyzer:
     @staticmethod
     def _redness_detail(s):
         if s >= 70:
-            return "붉은기가 적정 수준으로 건강한 혈색을 보이고 있습니다."
+            return "붉은기 및 트러블이 적어 건강한 상태입니다."
         if s >= 50:
-            return "약간의 붉은기가 감지됩니다. 진정 효과가 있는 시카(CICA) 제품이 도움이 될 수 있습니다."
-        return "붉은기가 다소 강한 편입니다. 민감성 피부 전용 제품과 진정 케어를 추천합니다."
+            return "약간의 트러블/붉은기가 감지됩니다. 진정 효과가 있는 시카(CICA) 제품이 도움이 될 수 있습니다."
+        return "트러블 또는 붉은기가 다소 강한 편입니다. 민감성 피부 전용 제품과 집중 진정 케어를 추천합니다."
 
     @staticmethod
     def _texture_detail(s):
@@ -243,6 +360,6 @@ class SkinAnalyzer:
 
         recs.append({
             "category": "자외선 차단", "icon": "☀️",
-            "tip": "SPF 50+ PA++++ 자외선 차단제를 매일 사용하는 것이 모든 피부 관리의 기본입니다.",
+            "tip": "SPF 50+ PA++++ 자외선 차단제를 매일 사용하는 매일 사용하는 것이 모든 피부 관리의 기본입니다.",
         })
         return recs

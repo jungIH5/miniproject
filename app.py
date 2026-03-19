@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 
-load_dotenv()  # .env를 Config import 전에 로드해야 환경변수가 반영됨
+# override=True를 주어야 서버 재시작 시 새롭게 바꾼 .env 값을 강제로 덮어씌웁니다.
+load_dotenv(override=True)
 
 from app import create_app
 

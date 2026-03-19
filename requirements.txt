@@ -6,3 +6,11 @@ gunicorn==23.0.0
 Pillow==11.1.0
 numpy==2.2.3
 requests==2.32.3
+google-generativeai==0.8.4
+
+torch
+torchvision
+opencv-python
+mediapipe
+
+psycopg2-binary

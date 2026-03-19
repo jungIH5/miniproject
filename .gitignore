@@ -2,3 +2,6 @@
 .venv/
 __pycache__/
 *.pyc
+
+*.zip
+skin_model_package/
