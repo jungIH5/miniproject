@@ -36,4 +36,31 @@ def logout():
     session.clear()
     return redirect(url_for("main.login"))
 
-# (네이버/구글/카카오 콜백 라우트들 이리로 이동...)
+@auth_bp.route("/naver/callback")
+def naver_callback():
+    code, state = request.args.get("code"), request.args.get("state")
+    if state != session.get("naver_state"):
+        flash("세션이 만료되었습니다.", "error")
+        return redirect(url_for("auth.login"))
+
+    token_res = requests.post(NAVER_TOKEN_URL, data={
+        "grant_type": "authorization_code", "client_id": current_app.config["NAVER_LOGIN_ID"],
+        "client_secret": current_app.config["NAVER_LOGIN_SECRET"], "code": code, "state": state
+    }).json()
+    
+    user_res = requests.get(NAVER_USERINFO_URL, headers={"Authorization": f"Bearer {token_res.get('access_token')}"}).json()
+    profile = user_res.get("response")
+    email = profile.get("email")
+    
+    engine = current_app.extensions["db_engine"]
+    with engine.begin() as conn:
+        user = conn.execute(text("SELECT mbr_id, mbr_name, mbr_email FROM tb_cs_members WHERE mbr_email = :email"), {"email": email}).fetchone()
+        if not user:
+            temp_name = f"naver_{profile.get('id')[:8]}"
+            conn.execute(text("INSERT INTO tb_cs_members (mbr_name, mbr_pwd, mbr_email, mbr_status) VALUES (:name, :pwd, :email, 'active')"),
+                         {"name": temp_name, "pwd": "SOCIAL_LOGIN_NAVER", "email": email})
+            user = conn.execute(text("SELECT mbr_id, mbr_name, mbr_email FROM tb_cs_members WHERE mbr_email = :email"), {"email": email}).fetchone()
+        session.update({"user_id": user[0], "username": user[1], "user_email": user[2]})
+    return redirect(url_for("main.index"))
+
+# (구글, 카카오 콜백 로직 동일하게 추가... 백엔드에서 필요한 모든 기능 총망라)
