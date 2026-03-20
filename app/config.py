@@ -28,6 +28,19 @@ class Config:
     NAVER_CLIENT_ID = os.getenv("NAVER_CLIENT_ID", "")
     NAVER_CLIENT_SECRET = os.getenv("NAVER_CLIENT_SECRET", "")
 
+    # ── 네이버 로그인 API (전용) ──
+    NAVER_LOGIN_ID = os.getenv("NAVER_LOGIN_ID", "")
+    NAVER_LOGIN_SECRET = os.getenv("NAVER_LOGIN_SECRET", "")
+
+    # ── 구글 로그인 API ──
+    GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
+    GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
+
+    # ── 카카오 로그인 API ──
+    KAKAO_CLIENT_ID = os.getenv("KAKAO_CLIENT_ID", "")
+    # 카카오는 보안을 위해 Client Secret을 사용할 수 있지만 필수(REST API키가 주 ID임)
+    KAKAO_CLIENT_SECRET = os.getenv("KAKAO_CLIENT_SECRET", "")
+
     # ── 제미나이(Gemini) API ──
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
