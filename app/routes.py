@@ -68,13 +68,13 @@ def naver_callback():
     
     engine = current_app.extensions["db_engine"]
     with engine.begin() as conn:
-        user = conn.execute(text("SELECT mbr_id, mbr_name FROM tb_cs_members WHERE mbr_email = :email"), {"email": email}).fetchone()
+        user = conn.execute(text("SELECT mbr_id, mbr_name, mbr_email FROM tb_cs_members WHERE mbr_email = :email"), {"email": email}).fetchone()
         if not user:
             temp_name = f"naver_{profile.get('id')[:8]}"
             conn.execute(text("INSERT INTO tb_cs_members (mbr_name, mbr_pwd, mbr_email, mbr_status) VALUES (:name, :pwd, :email, 'active')"),
                          {"name": temp_name, "pwd": "SOCIAL_LOGIN_NAVER", "email": email})
-            user = conn.execute(text("SELECT mbr_id, mbr_name FROM tb_cs_members WHERE mbr_email = :email"), {"email": email}).fetchone()
-        session["user_id"], session["username"] = user[0], user[1]
+            user = conn.execute(text("SELECT mbr_id, mbr_name, mbr_email FROM tb_cs_members WHERE mbr_email = :email"), {"email": email}).fetchone()
+        session["user_id"], session["username"], session["user_email"] = user[0], user[1], user[2]
     return redirect(url_for("main.index"))
 
 # --- 구글 로그인 시작 ---
@@ -109,14 +109,13 @@ def google_callback():
     
     engine = current_app.extensions["db_engine"]
     with engine.begin() as conn:
-        user = conn.execute(text("SELECT mbr_id, mbr_name FROM tb_cs_members WHERE mbr_email = :email"), {"email": email}).fetchone()
+        user = conn.execute(text("SELECT mbr_id, mbr_name, mbr_email FROM tb_cs_members WHERE mbr_email = :email"), {"email": email}).fetchone()
         if not user:
             temp_name = f"google_{user_res.get('sub')[:8]}"
             conn.execute(text("INSERT INTO tb_cs_members (mbr_name, mbr_pwd, mbr_email, mbr_status) VALUES (:name, :pwd, :email, 'active')"),
                          {"name": temp_name, "pwd": "SOCIAL_LOGIN_GOOGLE", "email": email})
-            user = conn.execute(text("SELECT mbr_id, mbr_name FROM tb_cs_members WHERE field = :email"), {"email": email}).fetchone() # fix table check
-            user = conn.execute(text("SELECT mbr_id, mbr_name FROM tb_cs_members WHERE mbr_email = :email"), {"email": email}).fetchone()
-        session["user_id"], session["username"] = user[0], user[1]
+            user = conn.execute(text("SELECT mbr_id, mbr_name, mbr_email FROM tb_cs_members WHERE mbr_email = :email"), {"email": email}).fetchone()
+        session["user_id"], session["username"], session["user_email"] = user[0], user[1], user[2]
     return redirect(url_for("main.index"))
 
 # --- 카카오 로그인 시작 ---
@@ -142,17 +141,22 @@ def kakao_callback():
 
     user_res = requests.get(KAKAO_USERINFO_URL, headers={"Authorization": f"Bearer {token_res.get('access_token')}"}).json()
     kakao_account = user_res.get("kakao_account")
-    email = kakao_account.get("email", f"{user_res.get('id')}@kakao.com")
+    
+    # kakao_account가 None일 경우를 대비해 안전하게 이메일 추출
+    if kakao_account:
+        email = kakao_account.get("email", f"{user_res.get('id')}@kakao.com")
+    else:
+        email = f"{user_res.get('id')}@kakao.com"
     
     engine = current_app.extensions["db_engine"]
     with engine.begin() as conn:
-        user = conn.execute(text("SELECT mbr_id, mbr_name FROM tb_cs_members WHERE mbr_email = :email"), {"email": email}).fetchone()
+        user = conn.execute(text("SELECT mbr_id, mbr_name, mbr_email FROM tb_cs_members WHERE mbr_email = :email"), {"email": email}).fetchone()
         if not user:
             temp_name = f"kakao_{user_res.get('id')}"
             conn.execute(text("INSERT INTO tb_cs_members (mbr_name, mbr_pwd, mbr_email, mbr_status) VALUES (:name, :pwd, :email, 'active')"),
                          {"name": temp_name, "pwd": "SOCIAL_LOGIN_KAKAO", "email": email})
-            user = conn.execute(text("SELECT mbr_id, mbr_name FROM tb_cs_members WHERE mbr_email = :email"), {"email": email}).fetchone()
-        session["user_id"], session["username"] = user[0], user[1]
+            user = conn.execute(text("SELECT mbr_id, mbr_name, mbr_email FROM tb_cs_members WHERE mbr_email = :email"), {"email": email}).fetchone()
+        session["user_id"], session["username"], session["user_email"] = user[0], user[1], user[2]
     return redirect(url_for("main.index"))
 
 @main_blueprint.route("/signup", methods=["GET", "POST"])

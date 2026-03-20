@@ -16,6 +16,60 @@
 </head>
 
 <body>
+    <!-- ── 사용자 정보 바 (고정) ── -->
+    {% if session.get('username') %}
+    <div class="user-bar">
+        <div class="user-info" id="user-info-bar" style="cursor: pointer;" title="내 정보 보기">
+            <div class="user-avatar">{{ session['username'][0] }}</div>
+            <span class="user-name">{{ session['username'] }}님 반가워요! ✨</span>
+        </div>
+        <a href="/logout" class="btn-logout" title="로그아웃">로그아웃</a>
+    </div>
+
+    <!-- ── 프로필 모달 ── -->
+    <div id="profile-modal" class="profile-modal">
+        <div class="profile-overlay" id="profile-overlay"></div>
+        <div class="profile-content">
+            <button class="profile-close" id="profile-close">&times;</button>
+            <div class="profile-header">
+                <div class="profile-avatar-lg">{{ session['username'][0] }}</div>
+                <h3>내 프로필 정보</h3>
+            </div>
+            <div class="profile-info-group">
+                <div class="profile-info-item">
+                    <span class="profile-info-label">사용자 이름</span>
+                    <div class="profile-info-value">{{ session['username'] }}</div>
+                </div>
+                <div class="profile-info-item">
+                    <span class="profile-info-label">이메일 계정</span>
+                    <div class="profile-info-value">{{ session.get('user_email', '정보 없음') }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const userInfoBar = document.getElementById('user-info-bar');
+            const profileModal = document.getElementById('profile-modal');
+            const profileClose = document.getElementById('profile-close');
+            const profileOverlay = document.getElementById('profile-overlay');
+
+            if (userInfoBar) {
+                userInfoBar.addEventListener('click', () => {
+                    profileModal.classList.add('active');
+                });
+            }
+
+            const closeModal = () => {
+                profileModal.classList.remove('active');
+            };
+
+            if (profileClose) profileClose.addEventListener('click', closeModal);
+            if (profileOverlay) profileOverlay.addEventListener('click', closeModal);
+        });
+    </script>
   <!-- ====== 히어로 / 업로드 섹션 ====== -->
   <section id="upload-section" class="section active">
     <div class="container">
