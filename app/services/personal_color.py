@@ -1,11 +1,19 @@
 """퍼스널컬러 분석 서비스
 
 이미지에서 피부 톤을 추출하고 퍼스널컬러 시즌(봄/여름/가을/겨울)을 분류합니다.
-기본적인 색상 분석을 제공하며, 추후 딥러닝 모델로 교체·보강할 수 있습니다.
+
+[개선사항 - 2026-03-20]
+1. MediaPipe 볼 영역 샘플링 (기존: 중앙 영역 고정 크롭)
+2. Gray World 조명 보정 적용
+3. LAB 색공간 기반 언더톤 판별 (a값+b값 종합)
+4. HSV 피부색 마스킹 — 비피부 픽셀 제외
+5. 이상치 제거 (상하 10% 트리밍)
 """
 
 from io import BytesIO
 
+import cv2
+import mediapipe as mp
 import numpy as np
 from PIL import Image
 
@@ -130,41 +138,158 @@ class PersonalColorAnalyzer:
     # ------------------------------------------------------------------ #
     #  공개 API                                                           #
     # ------------------------------------------------------------------ #
+    def __init__(self):
+        # [개선] MediaPipe FaceMesh 초기화 — 볼 영역 정밀 샘플링
+        self.face_mesh = None
+        try:
+            if hasattr(mp, "solutions"):
+                self.face_mesh = mp.solutions.face_mesh.FaceMesh(
+                    static_image_mode=True, max_num_faces=1, refine_landmarks=False
+                )
+        except Exception:
+            pass
+
+    # ------------------------------------------------------------------ #
+    # [개선] Gray World 조명 보정
+    # ------------------------------------------------------------------ #
+    @staticmethod
+    def _gray_world(frame_bgr):
+        b, g, r = cv2.split(frame_bgr.astype(np.float64))
+        avg_b, avg_g, avg_r = b.mean(), g.mean(), r.mean()
+        avg_all = (avg_b + avg_g + avg_r) / 3
+        if avg_b == 0 or avg_g == 0 or avg_r == 0:
+            return frame_bgr
+        sb, sg, sr = avg_all / avg_b, avg_all / avg_g, avg_all / avg_r
+        for s in [sb, sg, sr]:
+            if s < 0.5 or s > 2.0:
+                return frame_bgr
+        return cv2.merge([
+            np.clip(b * sb, 0, 255),
+            np.clip(g * sg, 0, 255),
+            np.clip(r * sr, 0, 255),
+        ]).astype(np.uint8)
+
+    # ------------------------------------------------------------------ #
+    # [개선] MediaPipe 볼 영역 추출
+    # ------------------------------------------------------------------ #
+    @staticmethod
+    def _extract_cheek_pixels(frame_bgr, landmarks):
+        """양쪽 볼 영역에서 피부 픽셀 샘플링 (11x11 패치)"""
+        h, w, _ = frame_bgr.shape
+        # 왼쪽 볼, 오른쪽 볼 랜드마크
+        cheek_indices = [50, 101, 116, 117, 118, 119, 280, 330, 345, 346, 347, 348]
+        samples = []
+        patch_size = 5  # 11x11 패치 (중심 ± 5)
+
+        for idx in cheek_indices:
+            if idx >= len(landmarks):
+                continue
+            lm = landmarks[idx]
+            cx, cy = int(lm.x * w), int(lm.y * h)
+            y1 = max(0, cy - patch_size)
+            y2 = min(h, cy + patch_size + 1)
+            x1 = max(0, cx - patch_size)
+            x2 = min(w, cx + patch_size + 1)
+            patch = frame_bgr[y1:y2, x1:x2]
+            if patch.size > 0:
+                samples.append(patch.reshape(-1, 3))
+
+        if not samples:
+            return None
+        return np.vstack(samples)
+
+    # ------------------------------------------------------------------ #
+    # [개선] HSV 피부색 필터링 + 이상치 제거
+    # ------------------------------------------------------------------ #
+    @staticmethod
+    def _filter_skin_pixels(pixels_bgr):
+        """HSV 마스킹으로 피부색만 추출 + 상하 10% 트리밍"""
+        if len(pixels_bgr) < 10:
+            return pixels_bgr.astype(float)
+
+        # HSV 변환 (1xN 이미지로 변환)
+        pixels_3d = pixels_bgr.reshape(1, -1, 3).astype(np.uint8)
+        hsv = cv2.cvtColor(pixels_3d, cv2.COLOR_BGR2HSV).reshape(-1, 3)
+
+        # 피부색 범위
+        mask = (hsv[:, 0] <= 25) & (hsv[:, 1] >= 30) & (hsv[:, 1] <= 170) & (hsv[:, 2] >= 60)
+        skin = pixels_bgr[mask]
+
+        if len(skin) < 10:
+            skin = pixels_bgr
+
+        # 이상치 제거: 밝기 기준 상하 10% 트리밍
+        brightness = skin.astype(float).mean(axis=1)
+        low = np.percentile(brightness, 10)
+        high = np.percentile(brightness, 90)
+        trimmed = skin[(brightness >= low) & (brightness <= high)]
+
+        return trimmed.astype(float) if len(trimmed) > 10 else skin.astype(float)
+
+    # ------------------------------------------------------------------ #
+    #  공개 API
+    # ------------------------------------------------------------------ #
     def analyze(self, image_bytes: bytes) -> dict:
         """이미지를 분석하여 퍼스널컬러 결과를 반환합니다."""
         try:
             img = Image.open(BytesIO(image_bytes)).convert("RGB")
             img = img.resize((300, 300))
-
-            # 중앙 영역 크롭 (피부 영역 근사)
             w, h = img.size
-            skin_region = img.crop((
-                int(w * 0.2), int(h * 0.15),
-                int(w * 0.8), int(h * 0.75),
-            ))
+            frame_rgb = np.array(img)
+            frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
 
-            pixels = np.array(skin_region).reshape(-1, 3).astype(float)
+            # [개선] 조명 보정 적용
+            frame_bgr = self._gray_world(frame_bgr)
 
-            # 극단적으로 어둡거나 밝은 픽셀 제외
-            brightness = pixels.mean(axis=1)
-            mask = (brightness > 40) & (brightness < 240)
-            skin_pixels = pixels[mask] if mask.sum() > 100 else pixels
+            # [개선] MediaPipe 볼 영역 샘플링 (기존: 중앙 영역 고정 크롭)
+            skin_pixels_bgr = None
+            if self.face_mesh:
+                results = self.face_mesh.process(cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB))
+                if results.multi_face_landmarks:
+                    skin_pixels_bgr = self._extract_cheek_pixels(
+                        frame_bgr, results.multi_face_landmarks[0].landmark
+                    )
 
-            avg_r, avg_g, avg_b = skin_pixels.mean(axis=0)
+            # fallback: 중앙 영역 크롭
+            if skin_pixels_bgr is None or len(skin_pixels_bgr) < 10:
+                x1, y1 = int(w * 0.25), int(h * 0.3)
+                x2, y2 = int(w * 0.75), int(h * 0.7)
+                skin_pixels_bgr = frame_bgr[y1:y2, x1:x2].reshape(-1, 3)
 
-            # ── 언더톤 판별 (Warm vs Cool) ──
-            warmth = (avg_r * 0.6 + avg_g * 0.3) - (avg_b * 0.8 + avg_g * 0.1)
-            is_warm = warmth > 15
+            # [개선] HSV 마스킹 + 이상치 제거
+            skin_filtered = self._filter_skin_pixels(skin_pixels_bgr)
 
-            # ── 명도 판별 (Light vs Deep) ──
-            lightness = (avg_r + avg_g + avg_b) / 3
-            is_light = lightness > 140
+            # [개선] LAB 색공간으로 변환 — 언더톤 판별에 더 정확
+            skin_3d = skin_filtered.reshape(1, -1, 3).astype(np.uint8)
+            lab_pixels = cv2.cvtColor(skin_3d, cv2.COLOR_BGR2LAB).reshape(-1, 3).astype(float)
 
-            # ── 채도 판별 (Bright vs Muted) ──
-            max_c = max(avg_r, avg_g, avg_b)
-            min_c = min(avg_r, avg_g, avg_b)
-            saturation = (max_c - min_c) / max_c if max_c > 0 else 0
-            is_bright = saturation > 0.15
+            l_mean = lab_pixels[:, 0].mean()  # 밝기 (0~255)
+            a_mean = lab_pixels[:, 1].mean()  # 붉은기-초록 축 (128 = 중립)
+            b_mean = lab_pixels[:, 2].mean()  # 노란기-파란 축 (128 = 중립)
+
+            # RGB 평균도 추출 (결과 표시용)
+            rgb_pixels = cv2.cvtColor(skin_3d, cv2.COLOR_BGR2RGB).reshape(-1, 3).astype(float)
+            avg_r, avg_g, avg_b = rgb_pixels.mean(axis=0)
+
+            # HSV 채도 평균
+            hsv_pixels = cv2.cvtColor(skin_3d, cv2.COLOR_BGR2HSV).reshape(-1, 3).astype(float)
+            sat_mean = hsv_pixels[:, 1].mean()
+
+            # ── [개선] 언더톤 판별 (LAB a+b 종합, 한국인 보정) ──
+            # a값: 128 이상 = 붉은 쪽 (쿨), 이하 = 초록 쪽 (웜은 아님)
+            # b값: 128 이상 = 노란 쪽 (웜), 이하 = 파란 쪽 (쿨)
+            a_offset = a_mean - 128  # 양수=붉은, 음수=초록
+            b_offset = b_mean - 128  # 양수=노란, 음수=파란
+
+            # 한국인 피부는 b값(황색)이 높은 경향 → 보정
+            warmth_score = (b_offset * 1.2) - (a_offset * 0.8)
+            is_warm = warmth_score > 3
+
+            # ── 명도 판별 (LAB L채널) ──
+            is_light = l_mean > 155
+
+            # ── 채도 판별 (HSV S채널) ──
+            is_bright = sat_mean > 40
 
             # ── 시즌 분류 ──
             if is_warm and is_light:
@@ -188,9 +313,9 @@ class PersonalColorAnalyzer:
                     "factor": "언더톤",
                     "value": undertone_text,
                     "detail": (
-                        "피부의 붉은기와 푸른기 비율을 분석한 결과, "
-                        + ("따뜻한 황색 기반의 언더톤" if is_warm
-                           else "차가운 청색 기반의 언더톤")
+                        "피부의 황색기와 붉은기를 LAB 색공간에서 정밀 분석한 결과, "
+                        + ("따뜻한 황색 기반의 웜 언더톤" if is_warm
+                           else "차가운 청색 기반의 쿨 언더톤")
                         + "이 감지되었습니다."
                     ),
                 },
@@ -230,7 +355,7 @@ class PersonalColorAnalyzer:
                 "fashion_tip": season["fashion_tip"],
                 "reasoning": reasoning,
                 "skin_tone_rgb": [int(avg_r), int(avg_g), int(avg_b)],
-                "analysis_method": "basic_color_analysis",
+                "analysis_method": "advanced_color_analysis",
             }
 
         except Exception as e:

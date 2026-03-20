@@ -4,6 +4,8 @@ POST /api/diagnosis
   - multipart/form-data 로 image 필드에 사진 첨부
   - 퍼스널컬러 + 피부 상태 분석 + 실제 제품 추천을 JSON 으로 반환
   - 웹 프론트엔드 & 모바일 APK 앱 모두 이 API 를 사용
+
+[개선] ai_analyzer 통합 모듈을 통해 분석 호출하도록 변경
 """
 
 import uuid
@@ -12,10 +14,8 @@ from flask import current_app, request
 from sqlalchemy import text
 
 from . import api_blueprint
-from ..services.external_api import ExternalSkinAPI
+from ..services import ai_analyzer
 from ..services.naver_shopping import NaverShoppingAPI
-from ..services.personal_color import PersonalColorAnalyzer
-from ..services.skin_analysis import SkinAnalyzer
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 
@@ -42,23 +42,12 @@ def run_diagnosis():
             "error": "지원하지 않는 파일 형식입니다. (PNG, JPG, JPEG, WebP 만 가능)",
         }, 400
 
-    image_bytes = file.read()
-    if not image_bytes:
-        return {"success": False, "error": "빈 파일입니다."}, 400
+    # ── 1+2. AI 통합 분석 (퍼스널컬러 + 피부) ──
+    # [개선] ai_analyzer.analyze_skin_and_color() 하나로 통합 호출
+    result = ai_analyzer.analyze_skin_and_color(file)
 
-    # ── 1. 퍼스널컬러 분석 ──
-    color_result = PersonalColorAnalyzer().analyze(image_bytes)
-
-    # ── 2. 피부 상태 분석 (외부 DL API 우선 → 로컬 fallback) ──
-    ext_api = ExternalSkinAPI(
-        base_url=current_app.config.get("SKIN_API_URL", ""),
-        api_key=current_app.config.get("SKIN_API_KEY", ""),
-        timeout=current_app.config.get("SKIN_API_TIMEOUT", 30),
-    )
-    skin_result = ext_api.analyze(image_bytes)
-
-    if skin_result is None:
-        skin_result = SkinAnalyzer().analyze(image_bytes)
+    if not result.get("success"):
+        return result, 500
 
     # ── 3. 네이버 쇼핑 API로 실제 제품 검색 ──
     naver = NaverShoppingAPI(
@@ -68,21 +57,18 @@ def run_diagnosis():
 
     color_products = []
     skin_products = []
+    color_result = result.get("color_result", {})
 
     if naver.is_available:
-        # 퍼스널컬러에 어울리는 화장품
         if color_result.get("success"):
             color_products = naver.search_color_products(
                 color_result.get("season_key", "")
             )
+        skin_products = naver.search_skin_products(
+            result.get("conditions", {})
+        )
 
-        # 피부 상태에 맞는 스킨케어 제품
-        if skin_result.get("success"):
-            skin_products = naver.search_skin_products(
-                skin_result.get("conditions", {})
-            )
-
-    # ── 4. 진단 결과 DB 저장 (실패해도 결과는 반환) ──
+    # ── 4. 진단 결과 DB 저장 ──
     session_id = str(uuid.uuid4())
     try:
         engine = current_app.extensions.get("db_engine")
@@ -98,20 +84,28 @@ def run_diagnosis():
                     {
                         "sid": session_id,
                         "season": color_result.get("season_key", ""),
-                        "skin_type": skin_result.get("skin_type", {}).get("name", ""),
-                        "score": skin_result.get("overall_score", 0),
-                        "method": skin_result.get("analysis_method", "unknown"),
+                        "skin_type": result.get("skin_type", {}).get("name", ""),
+                        "score": result.get("overall_score", 0),
+                        "method": result.get("analysis_method", "unknown"),
                     },
                 )
                 conn.commit()
     except Exception:
-        pass  # DB 저장 실패 시에도 분석 결과는 반환
+        pass
 
     return {
         "success": True,
         "session_id": session_id,
         "personal_color": color_result,
-        "skin_analysis": skin_result,
+        "skin_analysis": {
+            "success": True,
+            "overall_score": result.get("overall_score"),
+            "skin_type": result.get("skin_type"),
+            "conditions": result.get("conditions"),
+            "recommendations": result.get("recommendations"),
+            "analysis_method": result.get("analysis_method"),
+        },
+        "ai_advice": result.get("ai_advice", ""),
         "color_products": color_products,
         "skin_products": skin_products,
     }

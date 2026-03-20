@@ -13,9 +13,11 @@ def create_app() -> Flask:
     from .routes.auth import auth_bp
     from .routes.main import main_bp
     from .routes.chat import chat_bp
+    from .api import api_blueprint
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(chat_bp)
+    app.register_blueprint(api_blueprint)
 
     return app
