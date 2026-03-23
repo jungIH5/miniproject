@@ -59,7 +59,47 @@ def chat():
         response = chat_session.send_message(message)
         ai_response = response.text
 
-        # 2. 정상 응답 시 AI 메시지를 DB에 저장
+        # ── [실시간 스마트 쇼핑 큐레이션 로직 추가] ── #
+        recommended_products = []
+        try:
+            from ..services.naver_shopping import NaverShoppingAPI
+            naver = NaverShoppingAPI(
+                client_id=current_app.config.get("NAVER_CLIENT_ID", ""),
+                client_secret=current_app.config.get("NAVER_CLIENT_SECRET", ""),
+            )
+            
+            if naver.is_available:
+                # 키워드 후보 (사용자 질문 + AI 답변에서 추출)
+                # 정규표현식 등을 쓰면 좋지만, 간단하게 뷰티 관련 핵심 단어 포함 여부 확인
+                beauty_keywords = [
+                    "립스틱", "틴트", "파운데이션", "쿠션", "아이섀도우", "블러셔", 
+                    "수분크림", "에센스", "세럼", "앰플", "선크림", "클렌징", "팩",
+                    "보습", "진정", "미백", "피지", "모공", "각질"
+                ]
+                
+                detected_kw = None
+                # 1. 사용자 질문에서 먼저 찾기
+                for kw in beauty_keywords:
+                    if kw in message:
+                        detected_kw = kw
+                        break
+                
+                # 2. 못 찾았다면 AI 답변에서 찾기
+                if not detected_kw:
+                    for kw in ai_response:
+                        if kw in ai_response:
+                            detected_kw = kw
+                            break
+                
+                if detected_kw:
+                    # 검색어 조합 (예: "봄웜톤 립스틱 추천" / "건성 수분크림 추천")
+                    season_info = str(context).split("퍼스널컬러: ")[1].split(",")[0] if "퍼스널컬러: " in str(context) else ""
+                    search_query = f"{season_info} {detected_kw} 추천"
+                    recommended_products = naver.search(search_query, display=3)
+        except Exception as e:
+            print(f"[Chat Search Error] {e}")
+
+        # 2. AI 응답을 DB에 저장
         if engine and mbr_id > 0:
             with engine.begin() as conn:
                 conn.execute(
@@ -69,11 +109,12 @@ def chat():
 
         return jsonify({
             "success": True, 
-            "response": ai_response
+            "response": ai_response,
+            "recommended_products": recommended_products
         })
         
     except Exception as e:
-        current_app.logger.error(f"Chat Error: {e}")
+        print(f"[Chat API Error] {e}")
         error_msg = "AI가 잠시 휴식 중이에요. 다시 시도해 주세요!"
         
         # 3. 에러 발생 시에도 AI 휴식 메시지를 DB에 저장

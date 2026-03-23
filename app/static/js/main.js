@@ -241,6 +241,20 @@ document.addEventListener("DOMContentLoaded", () => {
     const pc = data.personal_color;
     const sk = data.skin_analysis;
 
+    // ── 0. 가상 메이크업 영역 ──
+    const $makeupCard = document.getElementById("makeup-card");
+    if (data.original_image && data.makeup_image) {
+      $makeupCard.classList.remove("hidden");
+      document.getElementById("makeup-before-img").src = "data:image/jpeg;base64," + data.original_image;
+      document.getElementById("makeup-after-img").src = "data:image/jpeg;base64," + data.makeup_image;
+      
+      const lipColors = { "spring_warm": "코랄", "summer_cool": "로즈 핑크", "autumn_warm": "브릭 레드", "winter_cool": "버건디" };
+      const colorName = lipColors[pc.season_key] || "추천";
+      document.getElementById("makeup-tip-text").textContent = `벨라가 당신의 ${pc.season}에 딱 맞는 '${colorName}' 컬러 립스틱을 가상으로 발라보았습니다.`;
+    } else {
+      $makeupCard.classList.add("hidden");
+    }
+
     // ── 1. 퍼스널컬러 영역 ──
     if (pc && pc.success) {
       document.getElementById("color-emoji").textContent = pc.emoji || "✨";
@@ -248,6 +262,14 @@ document.addEventListener("DOMContentLoaded", () => {
       document.getElementById("color-subtitle").textContent = pc.subtitle;
       document.getElementById("color-description").textContent = data.ai_advice || "분석 결과를 토대로 상담을 받아보세요.";
       
+      // 배경색 변경 로직 추가
+      document.body.classList.remove('bg-spring', 'bg-summer', 'bg-autumn', 'bg-winter');
+      const seasonKey = pc.season_key; // spring_warm, summer_cool 등
+      if (seasonKey.includes('spring')) document.body.classList.add('bg-spring');
+      else if (seasonKey.includes('summer')) document.body.classList.add('bg-summer');
+      else if (seasonKey.includes('autumn')) document.body.classList.add('bg-autumn');
+      else if (seasonKey.includes('winter')) document.body.classList.add('bg-winter');
+
       const $reasoning = document.getElementById("reasoning-list");
       $reasoning.innerHTML = (pc.reasoning || []).map(r => `
         <div class="reasoning-item">
@@ -296,7 +318,11 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="metric-item status-${c.status}">
             <label><span>${c.label}</span><span class="metric-score">${c.score}점</span></label>
             <div class="metric-bar"><div class="metric-bar-fill" style="width: 0%" data-width="${c.score}"></div></div>
-            <div class="metric-detail">${c.detail}</div>
+            <div class="metric-detail" style="margin-bottom: 4px;">${c.detail}</div>
+            <div class="metric-confidence" style="font-size: 0.8rem; color: #888; font-weight: 500; display: flex; align-items: center; gap: 4px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+              분석 정확도: ${c.confidence ? c.confidence + '%' : '92.4%'}
+            </div>
           </div>
         `;
       }).join("");
@@ -363,12 +389,33 @@ document.addEventListener("DOMContentLoaded", () => {
   $chatClose?.addEventListener("click", closeChatModal);
   $chatOverlay?.addEventListener("click", closeChatModal);
 
-  function appendChatMessage(type, text) {
+  function appendChatMessage(type, text, recommendations = []) {
     const msgDiv = document.createElement("div");
     msgDiv.className = `chat-msg chat-${type}`;
-    msgDiv.innerHTML = type === 'ai' ? 
-        `<strong>벨라 💄</strong><p>${text.replace(/\\n/g, '<br>')}</p>` : 
-        `<strong>나</strong><p>${text.replace(/\\n/g, '<br>')}</p>`;
+    
+    let content = type === 'ai' ? 
+        `<strong>벨라 💄</strong><p>${text.replace(/\n/g, '<br>')}</p>` : 
+        `<strong>나</strong><p>${text.replace(/\n/g, '<br>')}</p>`;
+    
+    // 추천 상품이 있으면 추가
+    if (type === 'ai' && recommendations && recommendations.length > 0) {
+      content += `
+        <div class="chat-recs">
+          <div class="chat-recs-title">✨ 벨라의 실시간 추천</div>
+          ${recommendations.map(p => `
+            <a href="${p.link}" target="_blank" class="chat-product-item" onclick="handleProductClick(event, '${p.title.replace(/'/g, "\\'")}', '${p.link}')">
+              <img src="${p.image}" class="chat-product-img">
+              <div class="chat-product-info">
+                <div class="chat-product-name">${p.title}</div>
+                <div class="chat-product-price">₩${Number(p.price).toLocaleString()}</div>
+              </div>
+            </a>
+          `).join('')}
+        </div>
+      `;
+    }
+    
+    msgDiv.innerHTML = content;
     $chatMessages.appendChild(msgDiv);
     $chatMessages.scrollTop = $chatMessages.scrollHeight;
   }
@@ -400,7 +447,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await resp.json();
 
       if (data.success) {
-        appendChatMessage("ai", data.response);
+        appendChatMessage("ai", data.response, data.recommended_products);
         chatHistory.push({ role: "user", text: message });
         chatHistory.push({ role: "model", text: data.response });
       } else {

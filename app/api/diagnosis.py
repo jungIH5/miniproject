@@ -29,6 +29,10 @@ def _allowed(filename: str) -> bool:
 def run_diagnosis():
     """사진을 업로드하여 퍼스널컬러 + 피부 상태 진단 + 제품 추천"""
 
+    # ── [고도화] 비로그인 사용자 처리 보완 ──
+    if "user_id" not in session:
+        return {"success": False, "error": "로그인이 필요한 서비스입니다. 팀장님 말씀대로 비로그인 유저는 막았습니다."}, 401
+
     # ── 입력 검증 ──
     if "image" not in request.files:
         return {"success": False, "error": "이미지가 첨부되지 않았습니다."}, 400
@@ -58,10 +62,14 @@ def run_diagnosis():
 
     color_products = []
     skin_products = []
+    # result["personal_color"] 키일 수도 있으니 안전하게 가져옴 (방금 짠 AI Analyzer 참고)
     color_result = result.get("color_result", {})
+    if not color_result:
+        # 혹시 ai_analyzer 변경으로 키가 personal_color로 바뀐 경우
+        color_result = result.get("personal_color", {})
 
     if naver.is_available:
-        if color_result.get("success"):
+        if color_result:
             color_products = naver.search_color_products(
                 color_result.get("season_key", "")
             )
@@ -69,19 +77,26 @@ def run_diagnosis():
             result.get("conditions", {})
         )
 
-    # ── 4. 진단 결과 DB 저장: 기존 tb_sk_diagnosis 테이블 활용 ──
+    # ── 4. 진단 결과 DB 저장: tb_sk_diagnosis 테이블에 누락된 컬럼(tone 등) 추가 ──
     session_id = str(uuid.uuid4())
     try:
         engine = current_app.extensions.get("db_engine")
         if engine:
             with engine.begin() as conn:
-                mbr_id = session.get("user_id") if "user_id" in session else None
+                mbr_id = session.get("user_id")
                 cond = result.get("conditions", {})
+                
+                # 팀장님 PR에 있던 톤/명도/채도 데이터 추출 로직
+                reasoning = color_result.get("reasoning", [])
+                tone_info = next((r for r in reasoning if r.get("factor") == "언더톤"), {})
+                bright_info = next((r for r in reasoning if r.get("factor") == "명도"), {})
+                chrome_info = next((r for r in reasoning if r.get("factor") == "채도"), {})
                 
                 conn.execute(
                     text("""
                         INSERT INTO tb_sk_diagnosis (
                             mbr_id, color, color_note, color_rmk,
+                            tone, tone_rmk, bright, bright_rmk, chrome, chrome_rmk,
                             type, type_score, type_rmk,
                             bright_score, bright_score_rmk,
                             equality_score, equality_score_rmk,
@@ -92,6 +107,7 @@ def run_diagnosis():
                             match_color, unmatch_color
                         ) VALUES (
                             :mbr_id, :color, :color_note, :color_rmk,
+                            :tone, :tone_rmk, :bright, :bright_rmk, :chrome, :chrome_rmk,
                             :type, :type_score, :type_rmk,
                             :bright_score, :bright_score_rmk,
                             :equality_score, :equality_score_rmk,
@@ -106,7 +122,13 @@ def run_diagnosis():
                         "mbr_id": mbr_id,
                         "color": color_result.get("season_key", ""),
                         "color_note": color_result.get("season", ""),
-                        "color_rmk": json.dumps(color_result.get("reasoning", []), ensure_ascii=False),
+                        "color_rmk": json.dumps(reasoning, ensure_ascii=False),
+                        "tone": tone_info.get("value", ""),
+                        "tone_rmk": tone_info.get("reason", ""),
+                        "bright": bright_info.get("value", ""),
+                        "bright_rmk": bright_info.get("reason", ""),
+                        "chrome": chrome_info.get("value", ""),
+                        "chrome_rmk": chrome_info.get("reason", ""),
                         "type": result.get("skin_type", {}).get("name", ""),
                         "type_score": result.get("overall_score", 0),
                         "type_rmk": result.get("skin_type", {}).get("description", ""),

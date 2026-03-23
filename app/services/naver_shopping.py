@@ -63,17 +63,21 @@ class NaverShoppingAPI:
         return bool(self.client_id and self.client_secret)
 
     # ------------------------------------------------------------------ #
-    #  저수준 검색                                                        #
-    # ------------------------------------------------------------------ #
     def search(self, query: str, display: int = 4, sort: str = "sim") -> list[dict]:
-        """네이버 쇼핑 검색 API 호출"""
+        """네이버 쇼핑 검색 API 호출 (매번 다른 결과를 위해 start 값 랜덤 부여)"""
+        import random
         if not self.is_available:
             return []
 
         try:
             resp = requests.get(
                 self.BASE_URL,
-                params={"query": query, "display": display, "sort": sort},
+                params={
+                    "query": query, 
+                    "display": display, 
+                    "sort": sort,
+                    "start": random.randint(1, 15)  # 1~15위 사이에서 매번 다르게 시작
+                },
                 headers={
                     "X-Naver-Client-Id": self.client_id,
                     "X-Naver-Client-Secret": self.client_secret,
@@ -104,26 +108,50 @@ class NaverShoppingAPI:
     #  퍼스널컬러 화장품 검색                                              #
     # ------------------------------------------------------------------ #
     def search_color_products(self, season_key: str) -> list[dict]:
-        """퍼스널컬러 시즌에 어울리는 화장품 검색"""
+        """퍼스널컬러 시즌에 어울리는 화장품 검색 (실시간 랜덤 키워드 선택)"""
+        import random
         keywords = self.COLOR_KEYWORDS.get(season_key, [])
         results = []
-        for kw in keywords:
-            results.extend(self.search(kw, display=2))
+        if keywords:
+            # 매번 다른 조합의 키워드 2개를 랜덤으로 뽑아서 검색
+            selected_kws = random.sample(keywords, min(2, len(keywords)))
+            for kw in selected_kws:
+                results.extend(self.search(kw, display=2))
         return results
 
     # ------------------------------------------------------------------ #
     #  피부 상태 스킨케어 검색                                             #
     # ------------------------------------------------------------------ #
     def search_skin_products(self, conditions: dict) -> list[dict]:
-        """피부 분석 결과에 맞는 스킨케어 제품 검색"""
+        """피부 분석 결과에 맞는 스킨케어 제품 검색 (실시간 우선순위/랜덤)"""
+        import random
+        
+        # 피부 상태별 검색 키워드 (key, 검색어 집합)
+        expanded_keywords = {
+            "moisture": ["히알루론산 보습 크림", "수분 앰플 랭킹", "건성 수분 장벽 크림"],
+            "redness": ["시카 진정 크림 민감성", "어성초 앰플 원액", "병풀 추출물 토너"],
+            "brightness": ["비타민C 세럼 브라이트닝", "나이아신아마이드 미백", "글루타치온 크림"],
+            "texture": ["AHA BHA 필링 각질", "모공 축소 세럼", "피부결 개선 앰플"],
+            "oiliness": ["지성피부 유분조절 토너", "노세범 수분 크림", "모공 피지 컨트롤"]
+        }
+        
         results = []
-        for key, query, threshold in self.SKIN_KEYWORDS:
-            cond = conditions.get(key, {})
-            if cond.get("score", 100) < threshold:
-                results.extend(self.search(query, display=2))
+        # 상태가 나쁜(점수가 낮은) 순서대로 정렬하여 가장 시급한 2가지 문제 파악
+        troubles = [(k, cond.get("score", 100)) for k, cond in conditions.items() if isinstance(cond, dict)]
+        troubles.sort(key=lambda x: x[1])
+        
+        # 가장 점수가 낮은 2가지 증상에 대해 검색
+        target_issues = troubles[:2]
+        
+        for issue_key, score in target_issues:
+            if score < 70:  # 70점 미만일 때만 추천 작동
+                kws = expanded_keywords.get(issue_key, ["기초 스킨케어 세트"])
+                chosen_kw = random.choice(kws)
+                results.extend(self.search(chosen_kw, display=2))
 
-        # 모든 항목이 양호하면 베스트셀러 추천
+        # 만약 피부가 모두 너무 좋아서 추천조건(70점 이하)에 안 걸렸다면 베스트셀러 무작위 추천
         if not results:
-            results = self.search("스킨케어 베스트셀러", display=4)
+            fallback_kws = ["스킨케어 베스트셀러", "올리브영 1위 스킨케어", "백화점 명품 에센스"]
+            results = self.search(random.choice(fallback_kws), display=4)
 
         return results

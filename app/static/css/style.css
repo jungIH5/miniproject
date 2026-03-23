@@ -44,6 +44,33 @@ body {
   background-image:
     radial-gradient(ellipse at 20% 0%, rgba(201, 123, 132, 0.12) 0%, transparent 50%),
     radial-gradient(ellipse at 80% 10%, rgba(180, 142, 210, 0.10) 0%, transparent 50%);
+  transition: background 0.8s ease, background-image 0.8s ease;
+}
+
+/* ── 시즌별 배경화면 ── */
+body.bg-spring {
+  background-color: #fff9ed;
+  background-image:
+    radial-gradient(ellipse at 20% 0%, rgba(255, 212, 121, 0.2) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 10%, rgba(255, 154, 118, 0.15) 0%, transparent 50%);
+}
+body.bg-summer {
+  background-color: #f0f7ff;
+  background-image:
+    radial-gradient(ellipse at 20% 0%, rgba(174, 198, 255, 0.2) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 10%, rgba(240, 185, 255, 0.15) 0%, transparent 50%);
+}
+body.bg-autumn {
+  background-color: #f8f1e9;
+  background-image:
+    radial-gradient(ellipse at 20% 0%, rgba(210, 140, 95, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 10%, rgba(150, 110, 80, 0.1) 0%, transparent 50%);
+}
+body.bg-winter {
+  background-color: #f4f4f9;
+  background-image:
+    radial-gradient(ellipse at 20% 0%, rgba(95, 115, 210, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 10%, rgba(190, 50, 100, 0.1) 0%, transparent 50%);
 }
 
 /* ── 레이아웃 ── */
@@ -283,8 +310,61 @@ h1 {
   top: 0; left: 0; right: 0;
   height: 4px;
 }
-.card-color::before {
-  background: linear-gradient(90deg, var(--primary), var(--accent), var(--gold));
+.card-makeup::before {
+  background: linear-gradient(90deg, #ff9a9e, #fad0c4, #fad0c4);
+}
+
+.makeup-comparison {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.makeup-item {
+  flex: 1;
+  text-align: center;
+}
+.makeup-label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+.makeup-img-wrapper {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg-alt);
+  border: 2px solid transparent;
+  transition: var(--transition);
+}
+.makeup-img-wrapper.highlight {
+  border-color: var(--primary);
+  box-shadow: 0 0 15px rgba(201, 123, 132, 0.3);
+}
+.makeup-img-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.makeup-arrow {
+  color: var(--primary-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.makeup-info {
+  background: var(--bg-alt);
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  text-align: center;
 }
 .card-skin::before {
   background: linear-gradient(90deg, var(--success), var(--accent), var(--primary));
@@ -860,13 +940,6 @@ h1 {
 .chat-msg strong { font-weight: 700; color: var(--primary-dark); }
 .chat-msg ul, .chat-msg ol { margin: 8px 0 0 20px; padding: 0; }
 
-.chat-user {
-  align-self: flex-end;
-  background: var(--primary);
-  color: #fff;
-  border-bottom-right-radius: 4px;
-}
-
 .chat-ai {
   align-self: flex-start;
   background: #fff;
@@ -874,6 +947,92 @@ h1 {
   border: 1px solid rgba(0,0,0,0.05);
   box-shadow: 0 2px 4px rgba(0,0,0,0.02);
   border-bottom-left-radius: 4px;
+  position: relative;
+  margin-left: 44px; /* 아바타 공간 확보 */
+}
+
+/* 벨라 아바타 스타일 */
+.chat-ai::before {
+  content: "";
+  position: absolute;
+  left: -44px;
+  top: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-image: url('/static/img/bella_profile.png');
+  background-size: cover;
+  background-position: center;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.chat-user {
+  align-self: flex-end;
+  background: var(--primary);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+
+/* ── 채팅 내 상품 추천 스타일 ── */
+.chat-recs {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: fadeIn 0.4s ease forwards;
+}
+.chat-recs-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.chat-product-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid var(--primary-light);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  color: inherit;
+  transition: var(--transition);
+}
+.chat-product-item:hover {
+  transform: translateX(4px);
+  border-color: var(--primary);
+  box-shadow: var(--shadow);
+}
+.chat-product-img {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+.chat-product-info {
+  flex: 1;
+  min-width: 0;
+}
+.chat-product-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+.chat-product-price {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--primary-dark);
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .chat-input-area {

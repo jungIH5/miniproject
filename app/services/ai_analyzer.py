@@ -37,6 +37,9 @@ def analyze_skin_and_color(image_file):
         return {"success": False, "error": "이미지 파일이 없습니다."}
 
     image_bytes = image_file.read()
+    
+    # 원본 이미지 원격 전송용 Base64 (가상 메이크업 베이스)
+    base64_original = base64.b64encode(image_bytes).decode('utf-8')
 
     # ── 1단계: 딥러닝 기반 피부 분석 ──
     skin_result = _get_skin_analyzer().analyze(image_bytes)
@@ -45,19 +48,44 @@ def analyze_skin_and_color(image_file):
         return skin_result
 
     # ── 2단계: 로컬 퍼스널컬러 분석 ──
+    _get_color_analyzer()
     local_color = _get_color_analyzer().analyze(image_bytes)
 
-    # ── 3단계: Gemini 비전으로 퍼스널컬러 보완 + 종합 조언 + [추가] 쇼핑 검색어 생성 ──
+    # ── 3단계: Gemini 비전으로 퍼스널컬러 보완 + 종합 조언 ──
     gemini_color, ai_advice, shop_queries = _gemini_color_analysis_v2(image_bytes, skin_result)
 
     # Gemini 성공 시 → Gemini 컬러 결과 사용, 실패 시 → 로컬 결과 유지
     color_result = gemini_color if gemini_color else local_color
     
+    # ── [고도화] 가상 메이크업 시뮬레이션 합성 ──
+    virtual_makeup_image = None
+    try:
+        from .virtual_makeup import VirtualMakeup
+        vm = VirtualMakeup()
+        
+        # 시즌별 추천 립스틱 컬러 매핑
+        season_lip_colors = {
+            "spring_warm": "#FF7F50",   # 코랄
+            "summer_cool": "#E0115F",   # 로즈 핑크
+            "autumn_warm": "#A52A2A",   # 브릭 레드
+            "winter_cool": "#800020",   # 버건디 / 플럼
+        }
+        target_hex = season_lip_colors.get(color_result.get("season_key", ""), "#FF0000")
+        
+        makeup_bytes = vm.apply_lipstick(image_bytes, color_hex=target_hex, opacity=0.45)
+        if makeup_bytes:
+            virtual_makeup_image = base64.b64encode(makeup_bytes).decode('utf-8')
+    except Exception as e:
+        print(f"[VirtualMakeup Process Error] {e}")
+
     # ── 최종 결과 통합 ──
     final_result = {
         "success": True,
+        "original_image": base64_original,
+        "makeup_image": virtual_makeup_image,
         "overall_score": skin_result["overall_score"],
         "skin_type": skin_result["skin_type"],
+
         "conditions": skin_result["conditions"],
         "recommendations": skin_result["recommendations"],
         "analysis_method": skin_result.get("analysis_method", "basic"),

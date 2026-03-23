@@ -19,24 +19,7 @@ def init_db(app: Flask) -> None:
         with engine.begin() as conn:
             if is_postgres:
                 # ---------------- PostgreSQL (Supabase) ---------------- #
-                conn.execute(text("""
-                    CREATE TABLE IF NOT EXISTS sample_items (
-                        id BIGSERIAL PRIMARY KEY,
-                        title VARCHAR(120) NOT NULL,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    );
-                """))
-                conn.execute(text("""
-                    CREATE TABLE IF NOT EXISTS diagnosis_results (
-                        id BIGSERIAL PRIMARY KEY,
-                        session_id VARCHAR(36) NOT NULL,
-                        personal_color_season VARCHAR(30),
-                        skin_type VARCHAR(30),
-                        overall_score INT DEFAULT 0,
-                        analysis_method VARCHAR(30) DEFAULT 'basic',
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    );
-                """))
+                # 팀장님 요청 반영: 기존 사용 안하는 sample_items, diagnosis_results 테이블 생성 로직 제거 완료
                 # [고도화] 상품 클릭 로그 테이블 추가
                 conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS product_click_logs (
@@ -48,29 +31,10 @@ def init_db(app: Flask) -> None:
                     );
                 """))
 
-                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_session_id ON diagnosis_results(session_id);"))
-                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_created_at ON diagnosis_results(created_at);"))
                 print("[DB] PostgreSQL (Supabase) 테이블 확인 및 준비 완료")
             else:
                 # ---------------- MySQL ---------------- #
-                conn.execute(text("""
-                    CREATE TABLE IF NOT EXISTS sample_items (
-                        id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                        title VARCHAR(120) NOT NULL,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    );
-                """))
-                conn.execute(text("""
-                    CREATE TABLE IF NOT EXISTS diagnosis_results (
-                        id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                        session_id VARCHAR(36) NOT NULL,
-                        personal_color_season VARCHAR(30),
-                        skin_type VARCHAR(30),
-                        overall_score INT DEFAULT 0,
-                        analysis_method VARCHAR(30) DEFAULT 'basic',
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    );
-                """))
+                # ทีม장님 요청 반영: 기존 사용 안하는 sample_items, diagnosis_results 테이블 생성 로직 제거 완료
                 # [고도화] 상품 클릭 로그 테이블 추가
                 conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS product_click_logs (
