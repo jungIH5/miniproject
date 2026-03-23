@@ -10,8 +10,9 @@ POST /api/diagnosis
 
 import uuid
 
-from flask import current_app, request
+from flask import current_app, request, session
 from sqlalchemy import text
+import json
 
 from . import api_blueprint
 from ..services import ai_analyzer
@@ -68,28 +69,63 @@ def run_diagnosis():
             result.get("conditions", {})
         )
 
-    # ── 4. 진단 결과 DB 저장 ──
+    # ── 4. 진단 결과 DB 저장: 기존 tb_sk_diagnosis 테이블 활용 ──
     session_id = str(uuid.uuid4())
     try:
         engine = current_app.extensions.get("db_engine")
         if engine:
-            with engine.connect() as conn:
+            with engine.begin() as conn:
+                mbr_id = session.get("user_id") if "user_id" in session else None
+                cond = result.get("conditions", {})
+                
                 conn.execute(
-                    text(
-                        "INSERT INTO diagnosis_results "
-                        "(session_id, personal_color_season, skin_type, "
-                        " overall_score, analysis_method) "
-                        "VALUES (:sid, :season, :skin_type, :score, :method)"
-                    ),
+                    text("""
+                        INSERT INTO tb_sk_diagnosis (
+                            mbr_id, color, color_note, color_rmk,
+                            type, type_score, type_rmk,
+                            bright_score, bright_score_rmk,
+                            equality_score, equality_score_rmk,
+                            trouble_score, trouble_score_rmk,
+                            texture_score, texture_score_rmk,
+                            moisture_score, moisture_score_rmk,
+                            balance_score, balance_score_rmk,
+                            match_color, unmatch_color
+                        ) VALUES (
+                            :mbr_id, :color, :color_note, :color_rmk,
+                            :type, :type_score, :type_rmk,
+                            :bright_score, :bright_score_rmk,
+                            :equality_score, :equality_score_rmk,
+                            :trouble_score, :trouble_score_rmk,
+                            :texture_score, :texture_score_rmk,
+                            :moisture_score, :moisture_score_rmk,
+                            :balance_score, :balance_score_rmk,
+                            :match_color, :unmatch_color
+                        )
+                    """),
                     {
-                        "sid": session_id,
-                        "season": color_result.get("season_key", ""),
-                        "skin_type": result.get("skin_type", {}).get("name", ""),
-                        "score": result.get("overall_score", 0),
-                        "method": result.get("analysis_method", "unknown"),
-                    },
+                        "mbr_id": mbr_id,
+                        "color": color_result.get("season_key", ""),
+                        "color_note": color_result.get("season", ""),
+                        "color_rmk": json.dumps(color_result.get("reasoning", []), ensure_ascii=False),
+                        "type": result.get("skin_type", {}).get("name", ""),
+                        "type_score": result.get("overall_score", 0),
+                        "type_rmk": result.get("skin_type", {}).get("description", ""),
+                        "bright_score": cond.get("brightness", {}).get("score", 0),
+                        "bright_score_rmk": cond.get("brightness", {}).get("detail", ""),
+                        "equality_score": cond.get("evenness", {}).get("score", 0),
+                        "equality_score_rmk": cond.get("evenness", {}).get("detail", ""),
+                        "trouble_score": cond.get("redness", {}).get("score", 0),
+                        "trouble_score_rmk": cond.get("redness", {}).get("detail", ""),
+                        "texture_score": cond.get("texture", {}).get("score", 0),
+                        "texture_score_rmk": cond.get("texture", {}).get("detail", ""),
+                        "moisture_score": cond.get("moisture", {}).get("score", 0),
+                        "moisture_score_rmk": cond.get("moisture", {}).get("detail", ""),
+                        "balance_score": cond.get("oiliness", {}).get("score", 0),
+                        "balance_score_rmk": cond.get("oiliness", {}).get("detail", ""),
+                        "match_color": json.dumps(color_result.get("best_colors", []), ensure_ascii=False),
+                        "unmatch_color": json.dumps(color_result.get("worst_colors", []), ensure_ascii=False)
+                    }
                 )
-                conn.commit()
     except Exception:
         pass
 

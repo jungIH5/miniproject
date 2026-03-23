@@ -92,9 +92,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // ============================================================
   async function openCamera() {
     try {
-      // 이전 스트림 정리
       stopCamera();
-
       const constraints = {
         video: {
           facingMode: useFrontCamera ? "user" : "environment",
@@ -103,20 +101,12 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         audio: false,
       };
-
       cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
       $cameraVideo.srcObject = cameraStream;
       $cameraModal.classList.remove("hidden");
-
     } catch (err) {
       console.error("카메라 접근 실패:", err);
-      if (err.name === "NotAllowedError") {
-        alert("카메라 접근 권한이 거부되었습니다.\n브라우저 설정에서 카메라 권한을 허용해주세요.");
-      } else if (err.name === "NotFoundError") {
-        alert("연결된 카메라를 찾을 수 없습니다.\n웹캠이 올바르게 연결되어 있는지 확인해주세요.");
-      } else {
-        alert("카메라를 열 수 없습니다: " + err.message);
-      }
+      alert("카메라를 열 수 없습니다: " + err.message);
     }
   }
 
@@ -133,53 +123,34 @@ document.addEventListener("DOMContentLoaded", () => {
     $cameraModal.classList.add("hidden");
   }
 
-  // 카메라 열기
   $btnCamera.addEventListener("click", () => openCamera());
-
-  // 카메라 닫기
   $cameraClose.addEventListener("click", () => closeCamera());
   document.querySelector(".camera-overlay").addEventListener("click", () => closeCamera());
-
-  // 카메라 전환 (전면 ↔ 후면)
   $cameraSwitch.addEventListener("click", () => {
     useFrontCamera = !useFrontCamera;
     openCamera();
   });
 
-  // 촬영 (캡처)
   $cameraCapture.addEventListener("click", () => {
     if (!cameraStream) return;
-
     const video = $cameraVideo;
     const canvas = $cameraCanvas;
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-
     const ctx = canvas.getContext("2d");
-    // 거울 모드 반영 (전면 카메라)
     if (useFrontCamera) {
       ctx.translate(canvas.width, 0);
       ctx.scale(-1, 1);
     }
     ctx.drawImage(video, 0, 0);
-
-    // Canvas → Blob → File
     canvas.toBlob((blob) => {
       if (!blob) return;
       const capturedFile = new File([blob], "camera_capture.jpg", { type: "image/jpeg" });
       closeCamera();
-      handleFile(capturedFile, true);  // 촬영 후 바로 분석 시작
+      handleFile(capturedFile, true);
     }, "image/jpeg", 0.92);
   });
 
-  // ESC 키로 카메라 모달 닫기
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !$cameraModal.classList.contains("hidden")) {
-      closeCamera();
-    }
-  });
-
-  // 다른 사진 선택
   $btnChange.addEventListener("click", () => {
     selectedFile = null;
     $fileInput.value = "";
@@ -188,7 +159,6 @@ document.addEventListener("DOMContentLoaded", () => {
     $btnAnalyze.disabled = true;
   });
 
-  // 다시 진단하기
   $btnRetry.addEventListener("click", () => {
     selectedFile = null;
     $fileInput.value = "";
@@ -203,17 +173,13 @@ document.addEventListener("DOMContentLoaded", () => {
   // ============================================================
   $btnAnalyze.addEventListener("click", async () => {
     if (!selectedFile) return;
-
     showSection($loading);
-
-    // 로딩 애니메이션
     const steps = [
       { text: "이미지를 처리하고 있습니다...", pct: 20 },
       { text: "퍼스널컬러를 판별하고 있습니다...", pct: 45 },
       { text: "피부 상태를 분석하고 있습니다...", pct: 70 },
       { text: "결과를 정리하고 있습니다...", pct: 90 },
     ];
-
     let stepIdx = 0;
     const stepTimer = setInterval(() => {
       if (stepIdx < steps.length) {
@@ -226,53 +192,63 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const formData = new FormData();
       formData.append("image", selectedFile);
-
-      const resp = await fetch("/api/diagnosis", {
+      const resp = await fetch("/api/diagnosis", { // 기존에 작동하던 안정적인 경로로 복구
         method: "POST",
         body: formData,
       });
-
       const data = await resp.json();
-
       clearInterval(stepTimer);
       $loadingBar.style.width = "100%";
-
       if (!data.success) {
         alert(data.error || "분석에 실패했습니다.");
         showSection($upload);
         return;
       }
-
-      // 잠시 대기 후 결과 표시
       await new Promise((r) => setTimeout(r, 500));
       renderResults(data);
       showSection($result);
-
     } catch (err) {
       clearInterval(stepTimer);
       console.error(err);
-      alert("서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      alert("서버 연결에 실패했습니다.");
       showSection($upload);
     }
   });
 
   // ============================================================
-  //  결과 렌더링
+  //  상품 클릭 로그 기록 (Backend Leader 전용 기능)
+  // ============================================================
+  window.handleProductClick = async function(event, name, link) {
+    // 1. 서버에 로그 전송
+    try {
+      await fetch("/api/click-log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ product_name: name, product_link: link })
+      });
+    } catch (e) {
+      console.error("클릭 로그 전송 실패:", e);
+    }
+    // 2. 실제 링크로 이동 (target="_blank" 속성이 있다면 브라우저가 새 탭을 엽니다)
+  };
+
+  // ============================================================
+  //  결과 렌더링 (서버 응답 키값 동기화 완료)
   // ============================================================
   function renderResults(data) {
+    // 서버(diagnosis.py)에서 보내주는 정확한 키값으로 매핑
     const pc = data.personal_color;
     const sk = data.skin_analysis;
 
-    // ── 퍼스널컬러 ──
+    // ── 1. 퍼스널컬러 영역 ──
     if (pc && pc.success) {
-      document.getElementById("color-emoji").textContent = pc.emoji;
+      document.getElementById("color-emoji").textContent = pc.emoji || "✨";
       document.getElementById("color-season").textContent = pc.season;
       document.getElementById("color-subtitle").textContent = pc.subtitle;
-      document.getElementById("color-description").textContent = pc.description;
-
-      // 분석 근거
+      document.getElementById("color-description").textContent = data.ai_advice || "분석 결과를 토대로 상담을 받아보세요.";
+      
       const $reasoning = document.getElementById("reasoning-list");
-      $reasoning.innerHTML = pc.reasoning.map(r => `
+      $reasoning.innerHTML = (pc.reasoning || []).map(r => `
         <div class="reasoning-item">
           <span class="reasoning-factor">${r.factor}</span>
           <div class="reasoning-body">
@@ -282,255 +258,164 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
       `).join("");
 
-      // 추천 팔레트
-      const $best = document.getElementById("palette-best");
-      $best.innerHTML = pc.best_colors.map((name, i) => `
+      document.getElementById("palette-best").innerHTML = (pc.best_colors || []).map((name, i) => `
         <div class="swatch">
-          <div class="swatch-circle" style="background:${pc.color_codes[i] || '#ccc'}"></div>
+          <div class="swatch-circle" style="background:${pc.color_codes ? pc.color_codes[i] : '#ccc'}"></div>
           <span class="swatch-label">${name}</span>
         </div>
       `).join("");
 
-      // 비추천 팔레트 (실제 색상 + X 표시)
-      const $worst = document.getElementById("palette-worst");
-      $worst.innerHTML = pc.worst_colors.map((name, i) => `
+      document.getElementById("palette-worst").innerHTML = (pc.worst_colors || []).map((name, i) => `
         <div class="swatch">
-          <div class="swatch-circle" style="background:${(pc.worst_color_codes && pc.worst_color_codes[i]) || '#888'}"></div>
+          <div class="swatch-circle" style="background:${pc.worst_color_codes ? pc.worst_color_codes[i] : '#888'}"></div>
           <span class="swatch-label">${name}</span>
         </div>
       `).join("");
     }
 
-    // ── 퍼스널컬러 맞춤 제품 ──
-    renderProducts(data.color_products, "color-products", "color-products-empty");
-
-    // ── 피부 분석 ──
+    // ── 2. 피부 분석 영역 ──
     if (sk && sk.success) {
-      // SVG 그래디언트 (동적 삽입)
-      ensureScoreGradient();
-
-      // 전체 점수 원형 게이지
-      const score = sk.overall_score;
+      const score = sk.overall_score || 0;
       document.getElementById("score-number").textContent = score;
       const arc = document.getElementById("score-arc");
       const offset = 314 - (314 * score) / 100;
-      requestAnimationFrame(() => {
-        arc.style.strokeDashoffset = offset;
-      });
+      requestAnimationFrame(() => { arc.style.strokeDashoffset = offset; });
 
-      // 피부 타입
       const st = sk.skin_type || {};
-      document.getElementById("skin-emoji").textContent = st.emoji || "";
-      document.getElementById("skin-type-name").textContent = st.name || "";
+      document.getElementById("skin-emoji").textContent = st.emoji || "👤";
+      document.getElementById("skin-type-name").textContent = st.name || "분석 완료";
       document.getElementById("skin-type-desc").textContent = st.description || "";
 
-      // 상세 항목
       const $metrics = document.getElementById("metrics-grid");
       const condKeys = ["brightness", "evenness", "redness", "texture", "moisture", "oiliness"];
       $metrics.innerHTML = condKeys.map(key => {
-        const c = sk.conditions[key];
+        const c = sk.conditions ? sk.conditions[key] : null;
         if (!c) return "";
         return `
           <div class="metric-item status-${c.status}">
-            <label>
-              <span>${c.label}</span>
-              <span class="metric-score">${c.score}점</span>
-            </label>
-            <div class="metric-bar">
-              <div class="metric-bar-fill" data-width="${c.score}"></div>
-            </div>
+            <label><span>${c.label}</span><span class="metric-score">${c.score}점</span></label>
+            <div class="metric-bar"><div class="metric-bar-fill" style="width: 0%" data-width="${c.score}"></div></div>
             <div class="metric-detail">${c.detail}</div>
           </div>
         `;
       }).join("");
 
-      // 바 애니메이션
-      requestAnimationFrame(() => {
-        document.querySelectorAll(".metric-bar-fill[data-width]").forEach(el => {
+      setTimeout(() => {
+        document.querySelectorAll(".metric-bar-fill").forEach(el => {
           el.style.width = el.dataset.width + "%";
         });
-      });
-
-      // 분석 방법 안내
-      const $method = document.getElementById("method-note");
-      if (sk.analysis_method === "deep_learning_api") {
-        $method.textContent = "🧠 이 분석은 딥러닝 AI 모델을 통해 수행되었습니다.";
-      } else {
-        $method.textContent = "📊 기본 이미지 분석으로 수행되었습니다. 딥러닝 모델 연동 시 더 정확한 결과를 제공합니다.";
-      }
+      }, 100);
     }
 
-    // ── 스킨케어 맞춤 제품 ──
+    // ── 3. 쇼핑 추천 영역 ──
+    renderProducts(data.color_products, "color-products", "color-products-empty");
     renderProducts(data.skin_products, "skin-products", "skin-products-empty");
   }
 
-  // ============================================================
-  //  제품 카드 렌더링
-  // ============================================================
   function renderProducts(products, gridId, emptyId) {
     const $grid = document.getElementById(gridId);
     const $empty = document.getElementById(emptyId);
     if (!$grid) return;
-
     if (!products || products.length === 0) {
       $grid.innerHTML = "";
       if ($empty) $empty.classList.remove("hidden");
       return;
     }
-
     if ($empty) $empty.classList.add("hidden");
 
-    $grid.innerHTML = products.map(p => {
-      const price = Number(p.price).toLocaleString();
-      const brand = p.brand || "";
-      const mall = p.mall || "";
-      const category = p.category || "";
-
-      // 태그 생성 (빈 값 제외)
-      const tags = [brand, category, mall].filter(t => t).slice(0, 3);
-
-      return `
-        <a class="product-card" href="${p.link}" target="_blank" rel="noopener">
-          <img class="product-card-img" src="${p.image}" alt="${p.title}"
-               onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect fill=%22%23f0ecf0%22 width=%22100%22 height=%22100%22/><text x=%2250%22 y=%2255%22 text-anchor=%22middle%22 fill=%22%23b48ed2%22 font-size=%2228%22>🧴</text></svg>'" />
-          <div class="product-card-body">
-            ${brand ? `<div class="product-brand">${brand}</div>` : ""}
-            <div class="product-title">${p.title}</div>
-            <div class="product-price">₩${price}</div>
-            <div class="product-tags">
-              ${tags.map(t => `<span class="product-tag">${t}</span>`).join("")}
-            </div>
-          </div>
-        </a>
-      `;
-    }).join("");
-  }
-
-  // SVG gradient 정의 (한 번만 삽입)
-  function ensureScoreGradient() {
-    if (document.getElementById("scoreGradient")) return;
-    const svg = document.querySelector(".score-circle svg");
-    if (!svg) return;
-    const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
-    defs.innerHTML = `
-      <linearGradient id="scoreGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stop-color="#c97b84" />
-        <stop offset="100%" stop-color="#b48ed2" />
-      </linearGradient>
-    `;
-    svg.prepend(defs);
+    $grid.innerHTML = products.map(p => `
+      <a class="product-card" href="${p.link}" target="_blank" rel="noopener" 
+         onclick="handleProductClick(event, '${p.title.replace(/'/g, "\\'")}', '${p.link}')">
+        <img class="product-card-img" src="${p.image}" alt="${p.title}" />
+        <div class="product-card-body">
+          <div class="product-title">${p.title}</div>
+          <div class="product-price">₩${Number(p.price).toLocaleString()}</div>
+        </div>
+      </a>
+    `).join("");
   }
 
   // ============================================================
-  //  제미나이 AI 챗봇
+  // 제미나이 AI 챗봇 로직
   // ============================================================
-  const $chatModal = document.getElementById("chat-modal");
   const $btnOpenChat = document.getElementById("btn-open-chat");
-  const $chatClose = document.getElementById("chat-close");
-  const $chatMessages = document.getElementById("chat-messages");
-  const $chatInput = document.getElementById("chat-input");
-  const $btnSendChat = document.getElementById("btn-send-chat");
+  const $chatModal   = document.getElementById("chat-modal");
+  const $chatClose   = document.getElementById("chat-close");
   const $chatOverlay = document.getElementById("chat-overlay");
+  const $chatMessages = document.getElementById("chat-messages");
+  const $chatInput   = document.getElementById("chat-input");
+  const $btnSendChat = document.getElementById("btn-send-chat");
 
   let chatHistory = [];
-  
-  // 현재 진단 결과를 문자열로 변환하여 제미나이에게 전달할 컨텍스트 생성
-  function getDiagnosisContext() {
-    const pcSeason = document.getElementById("color-season")?.textContent;
-    const skScore = document.getElementById("score-number")?.textContent;
-    if (!pcSeason || pcSeason === "-") return "아직 진단 결과가 없습니다.";
-    
-    return `퍼스널컬러 진단 결과: ${pcSeason}\n피부 상태 점수: ${skScore}점\n위 결과를 바탕으로 사용자의 질문에 답해주세요.`;
-  }
 
-  function appendMessage(role, text) {
-    const isUser = role === "user";
-    const div = document.createElement("div");
-    div.className = `chat-msg ${isUser ? "chat-user" : "chat-ai"}`;
-    // 간단한 마크다운 문법 (굵게, 줄바꿈) 처리
-    let formattedText = text.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-    formattedText = formattedText.replace(/\n/g, "<br>");
-    div.innerHTML = formattedText;
-    
-    $chatMessages.appendChild(div);
-    $chatMessages.scrollTop = $chatMessages.scrollHeight;
-  }
-
-  function openChat() {
+  function openChatModal() {
     $chatModal.classList.remove("hidden");
-    if (chatHistory.length === 0) {
-      $chatMessages.innerHTML = "";
-      appendMessage("model", "안녕하세요! ✨\n진단하신 뷰티/피부 결과를 바탕으로 맞춤 화장품, 코디법, 스킨케어 팁에 대해 자유롭게 물어보세요!");
+    if ($chatMessages.innerHTML.trim() === "") {
+        appendChatMessage("ai", "반갑습니다! 당신의 뷰티 고민을 해결해드릴 AI 컨설턴트 벨라입니다. 피부 타입이나 스킨케어, 어울리는 스타일까지 무엇이든 편하게 물어보세요! ✨");
     }
   }
-
-  function closeChat() {
+  function closeChatModal() {
     $chatModal.classList.add("hidden");
   }
 
-  async function sendChatMessage() {
-    const text = $chatInput.value.trim();
-    if (!text) return;
+  $btnOpenChat?.addEventListener("click", openChatModal);
+  $chatClose?.addEventListener("click", closeChatModal);
+  $chatOverlay?.addEventListener("click", closeChatModal);
 
-    appendMessage("user", text);
+  function appendChatMessage(type, text) {
+    const msgDiv = document.createElement("div");
+    msgDiv.className = `chat-msg chat-${type}`;
+    msgDiv.innerHTML = type === 'ai' ? 
+        `<strong>벨라 💄</strong><p>${text.replace(/\\n/g, '<br>')}</p>` : 
+        `<strong>나</strong><p>${text.replace(/\\n/g, '<br>')}</p>`;
+    $chatMessages.appendChild(msgDiv);
+    $chatMessages.scrollTop = $chatMessages.scrollHeight;
+  }
+
+  async function sendChatMessage() {
+    const message = $chatInput.value.trim();
+    if (!message) return;
+
     $chatInput.value = "";
-    $chatInput.disabled = true;
+    appendChatMessage("user", message);
     $btnSendChat.disabled = true;
 
-    const loadingId = "loading-" + Date.now();
-    const loadingDiv = document.createElement("div");
-    loadingDiv.id = loadingId;
-    loadingDiv.className = "chat-msg chat-ai";
-    loadingDiv.innerHTML = "<span style='color: var(--text-muted)'>답변 작성중... 💭</span>";
-    $chatMessages.appendChild(loadingDiv);
-    $chatMessages.scrollTop = $chatMessages.scrollHeight;
+    // 현재 진단 정보 가져오기
+    const colorSeason = document.getElementById("color-season")?.textContent || "모름";
+    const skinType = document.getElementById("skin-type-name")?.textContent || "모름";
+    const skinScore = document.getElementById("score-number")?.textContent || "0";
+    const contextText = `사용자의 진단 결과 - 퍼스널컬러: ${colorSeason}, 피부타입: ${skinType} (${skinScore}점)`;
 
     try {
-      const res = await fetch("/api/chat", {
+      const resp = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message: text,
-          context: getDiagnosisContext(),
+          message: message,
+          context: contextText,
           history: chatHistory
         })
       });
-      
-      const data = await res.json();
-      document.getElementById(loadingId).remove();
+      const data = await resp.json();
 
-      if (!data.success) {
-        appendMessage("model", "⚠️ " + (data.error || "응답 오류가 발생했습니다. 제미나이 API 키를 확인해주세요."));
-        return;
+      if (data.success) {
+        appendChatMessage("ai", data.response);
+        chatHistory.push({ role: "user", text: message });
+        chatHistory.push({ role: "model", text: data.response });
+      } else {
+        appendChatMessage("ai", `오류가 발생했습니다: ${data.error}`);
       }
-
-      appendMessage("model", data.response);
-      chatHistory.push({ role: "user", text: text });
-      chatHistory.push({ role: "model", text: data.response });
-
-    } catch (e) {
-      document.getElementById(loadingId)?.remove();
-      appendMessage("model", "⚠️ 네트워크 오류가 발생했습니다.");
+    } catch (err) {
+      console.error(err);
+      appendChatMessage("ai", "서버 연결에 실패했습니다.");
     } finally {
-      $chatInput.disabled = false;
       $btnSendChat.disabled = false;
       $chatInput.focus();
     }
   }
 
-  if ($btnOpenChat) $btnOpenChat.addEventListener("click", openChat);
-  if ($chatClose) $chatClose.addEventListener("click", closeChat);
-  if ($chatOverlay) $chatOverlay.addEventListener("click", closeChat);
-  
-  if ($btnSendChat) $btnSendChat.addEventListener("click", sendChatMessage);
-  if ($chatInput) {
-    $chatInput.addEventListener("keydown", (e) => {
-      // 한글 입력 중 엔터 눌림 방지를 위해 isComposing 확인
-      if (e.key === "Enter" && !e.isComposing) {
-        e.preventDefault();
-        sendChatMessage();
-      }
-    });
-  }
-
+  $btnSendChat?.addEventListener("click", sendChatMessage);
+  $chatInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") sendChatMessage();
+  });
 });

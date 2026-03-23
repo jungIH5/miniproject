@@ -17,7 +17,7 @@ def login():
         mbr_name, mbr_pwd = request.form.get("username"), request.form.get("password")
         engine = current_app.extensions["db_engine"]
         with engine.begin() as conn:
-            user = conn.execute(text("SELECT mbr_id, mbr_name, mbr_pwd, mbr_email FROM tb_cs_members WHERE mbr_name = :name"), {"name": mbr_name}).fetchone()
+            user = conn.execute(text("SELECT mbr_id, mbr_name, mbr_pwd, mbr_email FROM tb_cs_member WHERE mbr_name = :name"), {"name": mbr_name}).fetchone()
             if user and check_password_hash(user[2], mbr_pwd):
                 session.update({"user_id": user[0], "username": user[1], "user_email": user[3]})
                 return redirect(url_for("main.index"))
@@ -27,8 +27,34 @@ def login():
 @auth_bp.route("/signup", methods=["GET", "POST"])
 def signup():
     if request.method == "POST":
-        # (회원가입 로직 구현...)
-        pass
+        mbr_name = request.form.get("username")
+        mbr_pwd = request.form.get("password")
+        mbr_email = request.form.get("email")
+        
+        hashed_pwd = generate_password_hash(mbr_pwd)
+        engine = current_app.extensions["db_engine"]
+        
+        try:
+            with engine.begin() as conn:
+                existing = conn.execute(
+                    text("SELECT 1 FROM tb_cs_member WHERE mbr_name = :name"),
+                    {"name": mbr_name}
+                ).fetchone()
+                
+                if existing:
+                    flash("이미 존재하는 아이디입니다.", "error")
+                else:
+                    conn.execute(
+                        text("""
+                            INSERT INTO tb_cs_member (mbr_name, mbr_pwd, mbr_email, mbr_status)
+                            VALUES (:name, :pwd, :email, 'active')
+                        """),
+                        {"name": mbr_name, "pwd": hashed_pwd, "email": mbr_email}
+                    )
+                    flash("회원가입이 완료되었습니다! 로그인해주세요.", "success")
+                    return redirect(url_for("auth.login"))
+        except Exception as e:
+            flash(f"가입 중 오류가 발생했습니다: {e}", "error")
     return render_template("signup.html")
 
 @auth_bp.route("/logout")
@@ -54,10 +80,10 @@ def naver_callback():
     
     engine = current_app.extensions["db_engine"]
     with engine.begin() as conn:
-        user = conn.execute(text("SELECT mbr_id, mbr_name, mbr_email FROM tb_cs_members WHERE mbr_email = :email"), {"email": email}).fetchone()
+        user = conn.execute(text("SELECT mbr_id, mbr_name, mbr_email FROM tb_cs_member WHERE mbr_email = :email"), {"email": email}).fetchone()
         if not user:
             temp_name = f"naver_{profile.get('id')[:8]}"
-            conn.execute(text("INSERT INTO tb_cs_members (mbr_name, mbr_pwd, mbr_email, mbr_status) VALUES (:name, :pwd, :email, 'active')"),
+            conn.execute(text("INSERT INTO tb_cs_member (mbr_name, mbr_pwd, mbr_email, mbr_status) VALUES (:name, :pwd, :email, 'active')"),
                          {"name": temp_name, "pwd": "SOCIAL_LOGIN_NAVER", "email": email})
             user = conn.execute(text("SELECT mbr_id, mbr_name, mbr_email FROM tb_cs_members WHERE mbr_email = :email"), {"email": email}).fetchone()
         session.update({"user_id": user[0], "username": user[1], "user_email": user[2]})
