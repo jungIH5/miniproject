@@ -241,6 +241,19 @@ class PersonalColorAnalyzer:
             # [개선] 조명 보정 적용
             frame_bgr = self._gray_world(frame_bgr)
 
+            # [개선] 얼굴 감지 검증 — 허공/배경 사진 차단 (Docker 호환)
+            gray_check = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
+            face_cascade = cv2.CascadeClassifier(
+                cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+            )
+            faces = face_cascade.detectMultiScale(gray_check, 1.3, 5)
+            if len(faces) == 0:
+                return {
+                    "success": False,
+                    "error": "얼굴을 인식하지 못했습니다. 얼굴이 잘 보이는 정면 사진으로 다시 시도해주세요.",
+                    "face_detected": False,
+                }
+
             # [개선] MediaPipe 볼 영역 샘플링 (기존: 중앙 영역 고정 크롭)
             skin_pixels_bgr = None
             if self.face_mesh:
@@ -250,11 +263,10 @@ class PersonalColorAnalyzer:
                         frame_bgr, results.multi_face_landmarks[0].landmark
                     )
 
-            # fallback: 중앙 영역 크롭
+            # fallback: MediaPipe 실패 시 Cascade 감지 영역 사용
             if skin_pixels_bgr is None or len(skin_pixels_bgr) < 10:
-                x1, y1 = int(w * 0.25), int(h * 0.3)
-                x2, y2 = int(w * 0.75), int(h * 0.7)
-                skin_pixels_bgr = frame_bgr[y1:y2, x1:x2].reshape(-1, 3)
+                fx, fy, fw, fh = faces[0]
+                skin_pixels_bgr = frame_bgr[fy:fy+fh, fx:fx+fw].reshape(-1, 3)
 
             # [개선] HSV 마스킹 + 이상치 제거
             skin_filtered = self._filter_skin_pixels(skin_pixels_bgr)

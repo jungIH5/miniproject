@@ -19,7 +19,7 @@ def chat():
 
     api_key = current_app.config.get("GEMINI_API_KEY")
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-1.5-flash")
+    model = genai.GenerativeModel("gemini-2.0-flash")
 
     message = data.get("message", "")
     context = data.get("context", "컨텍스트 정보가 없습니다.")
@@ -45,25 +45,25 @@ def chat():
             for item in history:
                 formatted_history.append({"role": item.get("role", "user"), "parts": [item.get("text", "")]})
         
+        # 1. 사용자 메시지를 먼저 DB에 저장
+        engine = current_app.extensions.get("db_engine")
+        mbr_id = int(session.get("user_id", 0))
+        if engine and mbr_id > 0:
+            with engine.begin() as conn:
+                conn.execute(
+                    text("INSERT INTO tb_cb_chatbot (mbr_id, sender_type, content) VALUES (:mbr_id, 'USER', :content)"),
+                    {"mbr_id": mbr_id, "content": message}
+                )
+
         chat_session = model.start_chat(history=formatted_history)
         response = chat_session.send_message(message)
         ai_response = response.text
 
-        # ── 상담 내역 DB 저장 ──
-        engine = current_app.extensions.get("db_engine")
-        if engine:
+        # 2. 정상 응답 시 AI 메시지를 DB에 저장
+        if engine and mbr_id > 0:
             with engine.begin() as conn:
-                mbr_id = int(session["user_id"])
-                
-                # 사용자 메시지 저장
                 conn.execute(
-                    text("INSERT INTO tb_cb_chatbot (mbr_id, sender_type, content) VALUES (:mbr_id, 'user', :content)"),
-                    {"mbr_id": mbr_id, "content": message}
-                )
-                
-                # AI 응답 저장
-                conn.execute(
-                    text("INSERT INTO tb_cb_chatbot (mbr_id, sender_type, content) VALUES (:mbr_id, 'ai', :content)"),
+                    text("INSERT INTO tb_cb_chatbot (mbr_id, sender_type, content) VALUES (:mbr_id, 'BOT', :content)"),
                     {"mbr_id": mbr_id, "content": ai_response}
                 )
 
@@ -74,4 +74,19 @@ def chat():
         
     except Exception as e:
         current_app.logger.error(f"Chat Error: {e}")
-        return jsonify({"success": False, "error": "AI가 잠시 휴식 중이에요. 다시 시도해 주세요!"}), 500
+        error_msg = "AI가 잠시 휴식 중이에요. 다시 시도해 주세요!"
+        
+        # 3. 에러 발생 시에도 AI 휴식 메시지를 DB에 저장
+        engine = current_app.extensions.get("db_engine")
+        mbr_id = int(session.get("user_id", 0))
+        if engine and mbr_id > 0:
+            try:
+                with engine.begin() as conn:
+                    conn.execute(
+                        text("INSERT INTO tb_cb_chatbot (mbr_id, sender_type, content) VALUES (:mbr_id, 'BOT', :content)"),
+                        {"mbr_id": mbr_id, "content": error_msg}
+                    )
+            except Exception:
+                pass
+                
+        return jsonify({"success": False, "error": error_msg}), 500

@@ -175,6 +175,20 @@ class SkinAnalyzer:
             # [개선] Gray World 조명 보정 적용 — 조명 환경 차이 제거
             frame_bgr = self._gray_world_correction(frame_bgr)
 
+            # [개선] 얼굴 감지 검증 — 허공/배경 사진에 점수 부여 방지
+            # OpenCV Cascade로 얼굴 존재 여부 먼저 확인 (Docker 호환)
+            gray_check = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
+            face_cascade = cv2.CascadeClassifier(
+                cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+            )
+            faces = face_cascade.detectMultiScale(gray_check, 1.3, 5)
+            if len(faces) == 0:
+                return {
+                    "success": False,
+                    "error": "얼굴을 인식하지 못했습니다. 얼굴이 잘 보이는 정면 사진으로 다시 시도해주세요.",
+                    "face_detected": False,
+                }
+
             # 2) MediaPipe 얼굴 랜드마크 → 볼 영역 크롭
             skin_region_bgr = None
             if self.face_mesh:
@@ -183,11 +197,10 @@ class SkinAnalyzer:
                     face_landmarks = results.multi_face_landmarks[0]
                     skin_region_bgr = self.extract_skin_region_mp(frame_bgr, face_landmarks.landmark)
 
-            # fallback: 중앙 영역 크롭
+            # fallback: MediaPipe 실패 시 Cascade 감지 영역 사용
             if skin_region_bgr is None or skin_region_bgr.size == 0:
-                x_min, y_min = int(w * 0.2), int(h * 0.15)
-                x_max, y_max = int(w * 0.8), int(h * 0.75)
-                skin_region_bgr = frame_bgr[y_min:y_max, x_min:x_max]
+                fx, fy, fw, fh = faces[0]  # 첫 번째 감지된 얼굴
+                skin_region_bgr = frame_bgr[fy:fy+fh, fx:fx+fw]
 
             # ── CNN 트러블 판별 ──
             cnn_trouble_confidence = None

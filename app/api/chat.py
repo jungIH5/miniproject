@@ -42,13 +42,13 @@ def handle_chat():
                 
                 # 사용자 메시지 저장
                 conn.execute(
-                    text("INSERT INTO tb_cb_chatbot (mbr_id, sender_type, content) VALUES (:mbr_id, 'user', :content)"),
+                    text("INSERT INTO tb_cb_chatbot (mbr_id, sender_type, content) VALUES (:mbr_id, 'USER', :content)"),
                     {"mbr_id": mbr_id, "content": message}
                 )
                 
                 # AI 응답 저장
                 conn.execute(
-                    text("INSERT INTO tb_cb_chatbot (mbr_id, sender_type, content) VALUES (:mbr_id, 'ai', :content)"),
+                    text("INSERT INTO tb_cb_chatbot (mbr_id, sender_type, content) VALUES (:mbr_id, 'BOT', :content)"),
                     {"mbr_id": mbr_id, "content": ai_response}
                 )
     except Exception as e:

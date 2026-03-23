@@ -224,7 +224,8 @@ document.addEventListener("DOMContentLoaded", () => {
       await fetch("/api/click-log", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ product_name: name, product_link: link })
+        body: JSON.stringify({ product_name: name, product_link: link }),
+        keepalive: true
       });
     } catch (e) {
       console.error("클릭 로그 전송 실패:", e);
@@ -350,7 +351,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function openChatModal() {
     $chatModal.classList.remove("hidden");
-    if ($chatMessages.innerHTML.trim() === "") {
+    if ($chatMessages.children.length === 0) {
         appendChatMessage("ai", "반갑습니다! 당신의 뷰티 고민을 해결해드릴 AI 컨설턴트 벨라입니다. 피부 타입이나 스킨케어, 어울리는 스타일까지 무엇이든 편하게 물어보세요! ✨");
     }
   }
