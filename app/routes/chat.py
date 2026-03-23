@@ -19,7 +19,7 @@ def chat():
 
     api_key = current_app.config.get("GEMINI_API_KEY")
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-2.0-flash")
+    model = genai.GenerativeModel("gemini-flash-latest")
 
     message = data.get("message", "")
     context = data.get("context", "컨텍스트 정보가 없습니다.")

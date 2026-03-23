@@ -124,11 +124,11 @@ def run_diagnosis():
                         "color_note": color_result.get("season", ""),
                         "color_rmk": json.dumps(reasoning, ensure_ascii=False),
                         "tone": tone_info.get("value", ""),
-                        "tone_rmk": tone_info.get("reason", ""),
+                        "tone_rmk": tone_info.get("detail", ""),
                         "bright": bright_info.get("value", ""),
-                        "bright_rmk": bright_info.get("reason", ""),
+                        "bright_rmk": bright_info.get("detail", ""),
                         "chrome": chrome_info.get("value", ""),
-                        "chrome_rmk": chrome_info.get("reason", ""),
+                        "chrome_rmk": chrome_info.get("detail", ""),
                         "type": result.get("skin_type", {}).get("name", ""),
                         "type_score": result.get("overall_score", 0),
                         "type_rmk": result.get("skin_type", {}).get("description", ""),
@@ -163,7 +163,11 @@ def run_diagnosis():
             "recommendations": result.get("recommendations"),
             "analysis_method": result.get("analysis_method"),
         },
+        "product_reasons": result.get("product_reasons", {}),
         "ai_advice": result.get("ai_advice", ""),
         "color_products": color_products,
         "skin_products": skin_products,
     }
+
+
+

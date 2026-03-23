@@ -52,37 +52,13 @@ def analyze_skin_and_color(image_file):
     local_color = _get_color_analyzer().analyze(image_bytes)
 
     # ── 3단계: Gemini 비전으로 퍼스널컬러 보완 + 종합 조언 ──
-    gemini_color, ai_advice, shop_queries = _gemini_color_analysis_v2(image_bytes, skin_result)
+    gemini_color, ai_advice, shop_queries, product_reasons = _gemini_color_analysis_v2(image_bytes, skin_result)
 
     # Gemini 성공 시 → Gemini 컬러 결과 사용, 실패 시 → 로컬 결과 유지
     color_result = gemini_color if gemini_color else local_color
     
-    # ── [고도화] 가상 메이크업 시뮬레이션 합성 ──
-    virtual_makeup_image = None
-    try:
-        from .virtual_makeup import VirtualMakeup
-        vm = VirtualMakeup()
-        
-        # 시즌별 추천 립스틱 컬러 매핑
-        season_lip_colors = {
-            "spring_warm": "#FF7F50",   # 코랄
-            "summer_cool": "#E0115F",   # 로즈 핑크
-            "autumn_warm": "#A52A2A",   # 브릭 레드
-            "winter_cool": "#800020",   # 버건디 / 플럼
-        }
-        target_hex = season_lip_colors.get(color_result.get("season_key", ""), "#FF0000")
-        
-        makeup_bytes = vm.apply_lipstick(image_bytes, color_hex=target_hex, opacity=0.45)
-        if makeup_bytes:
-            virtual_makeup_image = base64.b64encode(makeup_bytes).decode('utf-8')
-    except Exception as e:
-        print(f"[VirtualMakeup Process Error] {e}")
-
-    # ── 최종 결과 통합 ──
     final_result = {
         "success": True,
-        "original_image": base64_original,
-        "makeup_image": virtual_makeup_image,
         "overall_score": skin_result["overall_score"],
         "skin_type": skin_result["skin_type"],
 
@@ -90,6 +66,7 @@ def analyze_skin_and_color(image_file):
         "recommendations": skin_result["recommendations"],
         "analysis_method": skin_result.get("analysis_method", "basic"),
         "color_result": color_result,
+        "product_reasons": product_reasons,
         "ai_advice": ai_advice or "피부 분석이 완료되었습니다. AI 상담에서 더 자세한 조언을 받아보세요!",
         "shop_queries": shop_queries # [업그레이드] 실시간 생성된 검색어 리스트
     }
@@ -104,15 +81,18 @@ def _gemini_color_analysis_v2(image_bytes, skin_result):
 
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-2.0-flash")
+        model = genai.GenerativeModel("gemini-flash-latest")
 
         conditions_json = json.dumps(skin_result.get("conditions", {}), ensure_ascii=False)
 
         prompt = f"""
-        당신은 숙련된 퍼스널 컬러 전문가이자 피부과 전문의입니다.
-        이미지를 분석하여 다음 JSON 형식으로만 답변해주세요.
-        내용에 피부 분석 결과({conditions_json})를 참고하여 종합적인 조언을 담아주세요.
-        특히, 사용자의 피부 고민을 해결할 수 있는 '네이버 쇼핑 검색어' 3개를 함께 생성해주세요.
+        당신은 숙련된 퍼스널 컬러 전문가이자 수석 피부과 전문의입니다.
+        이미지를 분석하여 다음 JSON 형식으로만 답변하되, 아래 지침을 엄격히 준수하세요.
+
+        [분석 지침]
+        1. 피부 분석 결과({conditions_json})를 참고하여 상세한 전문가 소견을 작성하세요.
+        2. 'product_reasons' 항목에서 피부 점수가 **가장 낮은 상위 2개 지표**를 실명(예: 수분, 주름 등)으로 언급하여 분석의 전문성을 높이세요.
+        3. 퍼스널 컬러와 제품 색상 간의 조화를 논리적으로 설명하세요.
 
         {{
           "color_result": {{
@@ -122,7 +102,9 @@ def _gemini_color_analysis_v2(image_bytes, skin_result):
             "emoji": "🌸",
             "subtitle": "어울리는 대표 분위기 설명",
             "reasoning": [
-              {{"factor": "피부톤", "value": "상세 분석", "detail": "이유"}}
+              {{"factor": "언더톤", "value": "분석 결과", "detail": "이유"}},
+              {{"factor": "명도", "value": "분석 결과", "detail": "이유"}},
+              {{"factor": "채도", "value": "분석 결과", "detail": "이유"}}
             ],
             "best_colors": ["색상 6개"],
             "color_codes": ["#hex 6개"],
@@ -131,11 +113,17 @@ def _gemini_color_analysis_v2(image_bytes, skin_result):
             "makeup_tip": "팁",
             "fashion_tip": "팁"
           }},
+          "product_reasons": {{
+            "color_product_title": "✨ [전문화된 추천 제목 생성]",
+            "color_products": "퍼스널 컬러의 특성을 고려하여 이 제품군이 왜 잘 어울리는지 설명하세요.",
+            "skin_product_title": "🩺 [진단 기반 맞춤 제목 생성]",
+            "skin_products": "가장 점수가 낮은 2가지 지표를 언급하며 그에 따른 전문적인 스킨케어 처방 이유를 설명하세요."
+          }},
           "ai_advice": "전문가의 따뜻한 조언",
           "shop_queries": [
-            "검색어1 (예: 수분 부족형 지성을 위한 젤 크림)",
-            "검색어2 (예: 봄웜톤 코랄 립 틴트)",
-            "검색어3 (예: 민감성 피부 진정 시카 토너)"
+            "검색어1",
+            "검색어2",
+            "검색어3"
           ]
         }}
         """
@@ -148,11 +136,30 @@ def _gemini_color_analysis_v2(image_bytes, skin_result):
         ai_data_raw = response.text.replace("```json", "").replace("```", "").strip()
         ai_result = json.loads(ai_data_raw)
 
-        return ai_result.get("color_result"), ai_result.get("ai_advice"), ai_result.get("shop_queries", [])
+        # ── 기본값 보정 (AI 실패 대비) ──
+        reasons = ai_result.get("product_reasons", {})
+        reasons.setdefault("color_product_title", "✨ 퍼스널 컬러 기반 맞춤 큐레이션")
+        reasons.setdefault("color_products", f"분석된 {color_result.get('season', '컬러')} 톤의 피부 톤과 조화를 이루어, 얼굴에 형광등을 켠 듯 생기를 더해줄 최적의 색조 라인업을 구성했습니다.")
+        reasons.setdefault("skin_product_title", "🩺 피부 전문 진단 기반 상품 추천")
+        reasons.setdefault("skin_products", "현재 피부 상태의 가장 시급한 문제를 해결하고 유수분 밸런스를 즉각적으로 잡아줄 수 있는 전문 기능성 스킨케어입니다.")
+
+        return (
+            ai_result.get("color_result"),
+            ai_result.get("ai_advice"),
+            ai_result.get("shop_queries", []),
+            reasons
+        )
 
     except Exception as e:
         print(f"[AI] Gemini 분석 실패: {e}")
-        return None, None, []
+        # 실패 시 최소한의 기본 데이터 세트 반환
+        fallback_reasons = {
+            "color_product_title": "💄 어울리는 화장품 추천",
+            "color_products": "퍼스널 컬러 분석 결과에 따라 어울리는 메이크업 제품을 추천합니다.",
+            "skin_product_title": "🧴 추천 상품항목",
+            "skin_products": "피부 상태를 고려하여 효과적인 스킨케어 제품을 추천합니다."
+        }
+        return None, "현재 AI 분석 서버가 혼잡하여 기본 조언을 제공해 드립니다.", [], fallback_reasons
 
 
 # AI 상담 함수
@@ -162,7 +169,7 @@ def chat(message: str, context: str = "", history: list = None) -> dict:
 
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-2.0-flash")
+        model = genai.GenerativeModel("gemini-flash-latest")
         formatted_history = []
         if not history:
             system_prompt = f"전문 뷰티 컨설턴트 역할. 컨텍스트: {context}"

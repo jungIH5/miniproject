@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 
-  <link rel="stylesheet" href="/static/css/style.css" />
+  <link rel="stylesheet" href="/static/css/style.css?v=1.7" />
 </head>
 
 <body>
@@ -141,39 +141,13 @@
 
   <!-- ====== 결과 섹션 ====== -->
   <section id="result-section" class="section">
-    <div class="container">
+    <div class="container container-wide">
       <header class="result-header">
         <h2>진단 결과</h2>
         <button id="btn-retry" class="btn btn-ghost" type="button">다시 진단하기</button>
       </header>
 
-      <!-- 가상 메이크업 시뮬레이션 (새로 추가) -->
-      <div class="card card-makeup hidden" id="makeup-card">
-        <div class="card-badge">Virtual Try-on</div>
-        <div class="makeup-comparison">
-          <div class="makeup-item">
-            <span class="makeup-label">Before</span>
-            <div class="makeup-img-wrapper">
-              <img id="makeup-before-img" src="" alt="Before">
-            </div>
-          </div>
-          <div class="makeup-arrow">
-            <svg viewBox="0 0 24 24" fill="none" width="24" height="24">
-              <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <div class="makeup-item">
-            <span class="makeup-label">After (AI Recommendation)</span>
-            <div class="makeup-img-wrapper highlight">
-              <img id="makeup-after-img" src="" alt="After">
-            </div>
-          </div>
-        </div>
-        <div class="makeup-info">
-          <p id="makeup-tip-text">당신에게 가장 잘 어울리는 립스틱 컬러를 가상으로 입혀보았습니다.</p>
-        </div>
-      </div>
-
+      <div class="results-grid">
       <!-- 퍼스널컬러 결과 -->
       <div class="card card-color" id="color-card">
         <div class="card-badge">Personal Color</div>
@@ -201,7 +175,8 @@
 
         <!-- 퍼스널컬러 맞춤 화장품 추천 (실제 제품) -->
         <div class="products-section">
-          <h4>💄 어울리는 화장품 추천</h4>
+          <h4 id="color-product-title">💄 어울리는 화장품 추천</h4>
+          <p class="product-reason" id="color-product-reason" style="font-size:0.9rem; color:var(--text-muted); margin-bottom:12px; line-height:1.4;"></p>
           <div class="products-grid" id="color-products"></div>
           <p class="products-empty hidden" id="color-products-empty">네이버 쇼핑 API 연동 후 실제 제품이 표시됩니다.</p>
         </div>
@@ -235,11 +210,15 @@
         <!-- 추천 -->
         <!-- 스킨케어 제품 추천 (실제 제품) -->
         <div class="products-section">
-          <h4>🧴 추천 스킨케어 제품</h4>
+          <h4 id="skin-product-title">🧴 추천 상품항목</h4>
+          <p class="product-reason" id="skin-product-reason" style="font-size:0.9rem; color:var(--text-muted); margin-bottom:12px; line-height:1.4;"></p>
           <div class="products-grid" id="skin-products"></div>
           <p class="products-empty hidden" id="skin-products-empty">네이버 쇼핑 API 연동 후 실제 제품이 표시됩니다.</p>
         </div>
       </div>
+      </div> <!-- End of results-grid -->
+
+
 
       <!-- 분석 방법 안내 -->
       <div class="analysis-method-note" id="method-note"></div>
@@ -307,7 +286,7 @@
     <p>© 2026 Beauty Consulting Team · AI 기반 분석 결과는 의학적 진단을 대체하지 않습니다.</p>
   </footer>
 
-  <script src="/static/js/main.js?v=1.4"></script>
+  <script src="/static/js/main.js?v=2.1"></script>
 </body>
 
 </html>

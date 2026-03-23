@@ -241,20 +241,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const pc = data.personal_color;
     const sk = data.skin_analysis;
 
-    // ── 0. 가상 메이크업 영역 ──
-    const $makeupCard = document.getElementById("makeup-card");
-    if (data.original_image && data.makeup_image) {
-      $makeupCard.classList.remove("hidden");
-      document.getElementById("makeup-before-img").src = "data:image/jpeg;base64," + data.original_image;
-      document.getElementById("makeup-after-img").src = "data:image/jpeg;base64," + data.makeup_image;
-      
-      const lipColors = { "spring_warm": "코랄", "summer_cool": "로즈 핑크", "autumn_warm": "브릭 레드", "winter_cool": "버건디" };
-      const colorName = lipColors[pc.season_key] || "추천";
-      document.getElementById("makeup-tip-text").textContent = `벨라가 당신의 ${pc.season}에 딱 맞는 '${colorName}' 컬러 립스틱을 가상으로 발라보았습니다.`;
-    } else {
-      $makeupCard.classList.add("hidden");
-    }
-
     // ── 1. 퍼스널컬러 영역 ──
     if (pc && pc.success) {
       document.getElementById("color-emoji").textContent = pc.emoji || "✨";
@@ -335,8 +321,25 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ── 3. 쇼핑 추천 영역 ──
-    renderProducts(data.color_products, "color-products", "color-products-empty");
-    renderProducts(data.skin_products, "skin-products", "skin-products-empty");
+    if (data.product_reasons) {
+      const ct = document.getElementById("color-product-title");
+      const st = document.getElementById("skin-product-title");
+      const cd = document.getElementById("color-product-reason");
+      const sd = document.getElementById("skin-product-reason");
+
+      if (ct && data.product_reasons.color_product_title) ct.textContent = data.product_reasons.color_product_title;
+      if (st && data.product_reasons.skin_product_title) st.textContent = data.product_reasons.skin_product_title;
+      
+      if (cd && data.product_reasons.color_products) cd.innerHTML = `<span style="font-weight:700; color:var(--primary);">💡 추천 사유 및 제품 설명:</span> ${data.product_reasons.color_products}`;
+      if (sd && data.product_reasons.skin_products) sd.innerHTML = `<span style="font-weight:700; color:var(--primary);">💡 추천 사유 및 제품 설명:</span> ${data.product_reasons.skin_products}`;
+    }
+    
+    if (data.color_products) {
+      renderProducts(data.color_products, "color-products", "color-products-empty");
+    }
+    if (data.skin_products) {
+      renderProducts(data.skin_products, "skin-products", "skin-products-empty");
+    }
   }
 
   function renderProducts(products, gridId, emptyId) {
@@ -402,15 +405,17 @@ document.addEventListener("DOMContentLoaded", () => {
       content += `
         <div class="chat-recs">
           <div class="chat-recs-title">✨ 벨라의 실시간 추천</div>
-          ${recommendations.map(p => `
-            <a href="${p.link}" target="_blank" class="chat-product-item" onclick="handleProductClick(event, '${p.title.replace(/'/g, "\\'")}', '${p.link}')">
-              <img src="${p.image}" class="chat-product-img">
-              <div class="chat-product-info">
-                <div class="chat-product-name">${p.title}</div>
-                <div class="chat-product-price">₩${Number(p.price).toLocaleString()}</div>
-              </div>
-            </a>
-          `).join('')}
+          <div class="chat-recs-scroll">
+            ${recommendations.map(p => `
+              <a href="${p.link}" target="_blank" class="chat-product-card" onclick="handleProductClick(event, '${p.title.replace(/'/g, "\\'")}', '${p.link}')">
+                <img src="${p.image}" class="chat-product-img" onerror="this.src='/static/img/default_product.png'">
+                <div class="chat-product-body">
+                  <div class="chat-prod-title">${p.title}</div>
+                  <div class="chat-prod-price">₩${Number(p.price).toLocaleString()}</div>
+                </div>
+              </a>
+            `).join('')}
+          </div>
         </div>
       `;
     }
@@ -434,6 +439,20 @@ document.addEventListener("DOMContentLoaded", () => {
     const skinScore = document.getElementById("score-number")?.textContent || "0";
     const contextText = `사용자의 진단 결과 - 퍼스널컬러: ${colorSeason}, 피부타입: ${skinType} (${skinScore}점)`;
 
+    // 로딩 인디케이터 추가
+    const $loadingMsg = document.createElement("div");
+    $loadingMsg.className = "chat-msg chat-ai";
+    $loadingMsg.id = "chat-loading-indicator";
+    $loadingMsg.innerHTML = `
+        <strong>벨라 💄</strong>
+        <div class="typing-indicator">
+            <span></span><span></span><span></span>
+            <small style="margin-left: 8px; color: var(--text-muted); font-size: 0.8rem;">벨라가 답변을 생각하고 있어요...</small>
+        </div>
+    `;
+    $chatMessages.appendChild($loadingMsg);
+    $chatMessages.scrollTop = $chatMessages.scrollHeight;
+
     try {
       const resp = await fetch("/api/chat", {
         method: "POST",
@@ -446,6 +465,9 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       const data = await resp.json();
 
+      // 로딩 제거
+      document.getElementById("chat-loading-indicator")?.remove();
+
       if (data.success) {
         appendChatMessage("ai", data.response, data.recommended_products);
         chatHistory.push({ role: "user", text: message });
@@ -455,6 +477,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     } catch (err) {
       console.error(err);
+      document.getElementById("chat-loading-indicator")?.remove();
       appendChatMessage("ai", "서버 연결에 실패했습니다.");
     } finally {
       $btnSendChat.disabled = false;
