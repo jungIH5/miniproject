@@ -29,6 +29,8 @@
   --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.hidden { display: none !important; }
+
 /* ── 커스텀 커서 ── */
 *, *::before, *::after {
   box-sizing: border-box; margin: 0; padding: 0;

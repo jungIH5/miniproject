@@ -10,7 +10,8 @@
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet" />
 
   <link rel="stylesheet" href="/static/css/style.css?v=2.8" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -26,20 +27,20 @@
     </div>
     <div class="nav-right">
       {% if session.get('username') %}
-        <div class="nav-user-info" id="user-info-bar" title="내 정보 보기">
-          <div class="user-avatar" id="nav-avatar">
-            {% if session.get('user_photo') %}
-              <img src="{{ session['user_photo'] }}" alt="" id="nav-avatar-img" />
-            {% else %}
-              <span id="nav-avatar-initials">{{ session['username'][0] }}</span>
-              <img src="" alt="" id="nav-avatar-img" style="display:none;" />
-            {% endif %}
-          </div>
-          <span class="user-name" id="nav-user-name">{{ session['username'] }}님</span>
+      <div class="nav-user-info" id="user-info-bar" title="내 정보 보기">
+        <div class="user-avatar" id="nav-avatar">
+          {% if session.get('user_photo') %}
+          <img src="{{ session['user_photo'] }}" alt="" id="nav-avatar-img" />
+          {% else %}
+          <span id="nav-avatar-initials">{{ session['username'][0] }}</span>
+          <img src="" alt="" id="nav-avatar-img" style="display:none;" />
+          {% endif %}
         </div>
-        <a href="/logout" class="btn-logout">로그아웃</a>
+        <span class="user-name" id="nav-user-name">{{ session['username'] }}님</span>
+      </div>
+      <a href="/logout" class="btn-logout">로그아웃</a>
       {% else %}
-        <a href="/login" class="btn-logout">로그인</a>
+      <a href="/login" class="btn-logout">로그인</a>
       {% endif %}
     </div>
   </nav>
@@ -55,15 +56,16 @@
       <div class="profile-header">
         <div class="profile-avatar-lg" id="profile-avatar-lg">
           {% if session.get('user_photo') %}
-            <img src="{{ session['user_photo'] }}" alt="프로필" id="avatar-img" />
+          <img src="{{ session['user_photo'] }}" alt="프로필" id="avatar-img" />
           {% else %}
-            <span id="avatar-initials">{{ session['username'][0] }}</span>
-            <img src="" alt="프로필" id="avatar-img" style="display:none;" />
+          <span id="avatar-initials">{{ session['username'][0] }}</span>
+          <img src="" alt="프로필" id="avatar-img" style="display:none;" />
           {% endif %}
           <div class="avatar-upload-overlay" id="avatar-upload-btn" title="사진 변경">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-              <circle cx="12" cy="13" r="4"/>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+              <circle cx="12" cy="13" r="4" />
             </svg>
           </div>
           <input type="file" id="avatar-file-input" accept="image/*" style="display:none;" />
@@ -97,11 +99,12 @@
       <div class="profile-tab-content" id="tab-history">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
           <p style="font-size: 0.8rem; color: var(--text-muted); margin:0;">최근 20개의 진단 기록입니다.</p>
-          <button id="btn-toggle-chart" class="btn btn-ghost" style="padding: 6px 14px; font-size:0.75rem;">📈 트렌드 차트 보기</button>
+          <button id="btn-toggle-chart" class="btn btn-ghost" style="padding: 6px 14px; font-size:0.75rem;">📈 차트 접기</button>
         </div>
-        
-        <!-- 그래프 컨테이너 (숨김 상태 시작) -->
-        <div id="history-chart-container" class="hidden" style="background: var(--bg-alt); padding: 16px; border-radius: var(--radius-sm); margin-bottom: 20px;">
+
+        <!-- 그래프 컨테이너 (기본 노출) -->
+        <div id="history-chart-container"
+          style="background: var(--bg-alt); padding: 16px; border-radius: var(--radius-sm); margin-bottom: 20px;">
           <canvas id="historyChart" style="max-height: 240px;"></canvas>
         </div>
 
@@ -153,10 +156,10 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      const profileModal  = document.getElementById('profile-modal');
-      const profileClose  = document.getElementById('profile-close');
+      const profileModal = document.getElementById('profile-modal');
+      const profileClose = document.getElementById('profile-close');
       const profileOverlay = document.getElementById('profile-overlay');
-      const userInfoBar   = document.getElementById('user-info-bar');
+      const userInfoBar = document.getElementById('user-info-bar');
 
       const openProfile = () => {
         profileModal.classList.add('active');
@@ -167,8 +170,8 @@
         historyLoaded = false; // 모달 닫을 때 리셋 → 다음에 열면 최신 이력 로드
       };
 
-      if (userInfoBar)    userInfoBar.addEventListener('click', openProfile);
-      if (profileClose)   profileClose.addEventListener('click', closeProfile);
+      if (userInfoBar) userInfoBar.addEventListener('click', openProfile);
+      if (profileClose) profileClose.addEventListener('click', closeProfile);
       if (profileOverlay) profileOverlay.addEventListener('click', closeProfile);
 
       // 탭 전환
@@ -189,9 +192,9 @@
       async function loadHistory() {
         if (historyLoaded) return;
         const loadingEl = document.getElementById('history-loading');
-        const tableEl   = document.getElementById('history-table');
-        const emptyEl   = document.getElementById('history-empty');
-        
+        const tableEl = document.getElementById('history-table');
+        const emptyEl = document.getElementById('history-empty');
+
         loadingEl.classList.remove('hidden');
         loadingEl.textContent = '불러오는 중...';
         tableEl.classList.add('hidden');
@@ -205,7 +208,7 @@
           if (data.success && data.history && data.history.length > 0) {
             const history = data.history;
             const tbody = document.getElementById('history-tbody');
-            
+
             // AI 컨텍스트용 요약 생성 (최근 5회)
             const summary = history.slice(0, 5).map(r => `${r.date.split(' ')[0]}: ${r.score}점(${r.skin})`).join(' -> ');
             window.historySummary = summary;
@@ -214,7 +217,7 @@
               // 변동 내역 계산 (이전 항목과 비교 - 배열이 내림차순이므로 i+1이 과거)
               let trendHtml = '-';
               if (i < history.length - 1) {
-                const prevScore = history[i+1].score;
+                const prevScore = history[i + 1].score;
                 const diff = r.score - prevScore;
                 if (diff > 0) trendHtml = `<span style="color:var(--success); font-weight:700;">↑${diff}</span>`;
                 else if (diff < 0) trendHtml = `<span style="color:var(--danger); font-weight:700;">↓${Math.abs(diff)}</span>`;
@@ -235,14 +238,14 @@
                 <td>${trendHtml}</td>
               </tr>`;
             }).join('');
-            
+
             tableEl.classList.remove('hidden');
             renderHistoryChart(history);
           } else {
             emptyEl.classList.remove('hidden');
           }
           historyLoaded = true;
-        } catch(e) {
+        } catch (e) {
           console.error(e);
           loadingEl.classList.remove('hidden');
           loadingEl.textContent = '불러오기 실패. 다시 시도해주세요.';
@@ -253,13 +256,13 @@
       function renderHistoryChart(history) {
         const ctx = document.getElementById('historyChart').getContext('2d');
         const reversedData = [...history].reverse(); // 시간순 정렬 (과거->현재)
-        
-        const labels = reversedData.map(r => new Date(r.date).toLocaleDateString('ko-KR', {month:'short', day:'numeric'}));
+
+        const labels = reversedData.map(r => new Date(r.date).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }));
         const scores = reversedData.map(r => r.score);
         const moistures = reversedData.map(r => r.moisture);
 
         if (historyChart) historyChart.destroy();
-        
+
         historyChart = new Chart(ctx, {
           type: 'line',
           data: {
@@ -299,17 +302,11 @@
         });
       }
 
-      // 차트 토글 버튼
-      document.getElementById('btn-toggle-chart')?.addEventListener('click', () => {
+      // 차트 토글 버튼 (기본 노출 상태에서 접는 기능 위주)
+      document.getElementById('btn-toggle-chart')?.addEventListener('click', (e) => {
         const container = document.getElementById('history-chart-container');
-        const btn = document.getElementById('btn-toggle-chart');
-        if (container.classList.contains('hidden')) {
-          container.classList.remove('hidden');
-          btn.textContent = '📉 차트 숨기기';
-        } else {
-          container.classList.add('hidden');
-          btn.textContent = '📈 트렌드 차트 보기';
-        }
+        const isHidden = container.classList.toggle('hidden');
+        e.target.textContent = isHidden ? '📈 차트 보기' : '📉 차트 접기';
       });
 
       // 아바타 업로드
@@ -336,19 +333,19 @@
             if (data.success) {
               const url = data.photo_url + '?t=' + Date.now();
               // 프로필 모달 아바타 갱신
-              const img      = document.getElementById('avatar-img');
+              const img = document.getElementById('avatar-img');
               const initials = document.getElementById('avatar-initials');
               img.src = url; img.style.display = 'block';
               if (initials) initials.style.display = 'none';
               // 네비게이션 아바타 갱신
-              const navImg      = document.getElementById('nav-avatar-img');
+              const navImg = document.getElementById('nav-avatar-img');
               const navInitials = document.getElementById('nav-avatar-initials');
               navImg.src = url; navImg.style.display = 'block';
               if (navInitials) navInitials.style.display = 'none';
             } else {
               alert('업로드 실패: ' + data.error);
             }
-          } catch(e) {
+          } catch (e) {
             alert('업로드 중 오류가 발생했습니다.');
           } finally {
             // 오버레이 아이콘 복원
@@ -360,14 +357,14 @@
 
       // 회원정보 수정
       document.getElementById('btn-profile-save')?.addEventListener('click', async () => {
-        const name     = document.getElementById('edit-name').value.trim();
-        const email    = document.getElementById('edit-email').value.trim();
+        const name = document.getElementById('edit-name').value.trim();
+        const email = document.getElementById('edit-email').value.trim();
         const password = document.getElementById('edit-password').value.trim();
         const msg = document.getElementById('edit-msg');
-        if (!name && !email && !password) { msg.style.color='var(--danger)'; msg.textContent='변경할 내용을 입력해주세요.'; return; }
+        if (!name && !email && !password) { msg.style.color = 'var(--danger)'; msg.textContent = '변경할 내용을 입력해주세요.'; return; }
         const res = await fetch('/api/profile/update', {
-          method: 'POST', headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({name, email, password})
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, password })
         });
         const data = await res.json();
         if (data.success) {
@@ -391,7 +388,7 @@
       });
     });
   </script>
-  
+
   <!-- ====== AI 컨설턴트 인사이드 섹션 (초기 숨김) ====== -->
   <section id="ai-intro-section" class="section hidden">
     <div class="container container-wide">
@@ -422,7 +419,8 @@
             <input type="text" id="chat-input-embedded" class="chat-text-input" placeholder="벨라에게 궁금한 점을 적어주세요..." />
             <button id="btn-send-chat-embedded" class="chat-send-btn" type="button">
               <svg viewBox="0 0 24 24" fill="none" width="18" height="18">
-                <path d="M22 2L11 13M22 2L15 22 11 13 2 9l20-7z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M22 2L11 13M22 2L15 22 11 13 2 9l20-7z" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round" />
               </svg>
             </button>
           </div>
@@ -449,7 +447,8 @@
           <svg viewBox="0 0 48 48" fill="none">
             <rect x="6" y="10" width="36" height="28" rx="6" stroke="currentColor" stroke-width="2.5" />
             <circle cx="18" cy="22" r="4" stroke="currentColor" stroke-width="2" />
-            <path d="M6 32l10-10 8 8 6-6 12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M6 32l10-10 8 8 6-6 12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" />
           </svg>
         </div>
         <p class="upload-text">여기에 사진을 드래그하거나 클릭하세요</p>
@@ -467,8 +466,8 @@
       <div class="button-group">
         <button id="btn-camera" class="btn btn-secondary" type="button">
           <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
-            <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"
-              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
             <circle cx="12" cy="13" r="4" stroke="currentColor" stroke-width="2" />
           </svg>
           카메라 촬영
@@ -509,74 +508,72 @@
       </header>
 
       <div class="results-grid">
-      <!-- 퍼스널컬러 결과 -->
-      <div class="card card-color" id="color-card">
-        <div class="card-badge">Personal Color</div>
-        <div class="color-hero">
-          <span class="color-emoji" id="color-emoji"></span>
-          <div>
-            <h3 id="color-season" class="color-season"></h3>
-            <p id="color-subtitle" class="color-subtitle"></p>
-          </div>
-        </div>
-        <p id="color-description" class="card-desc"></p>
-
-        <!-- 분석 근거 -->
-        <div class="reasoning-list" id="reasoning-list"></div>
-
-        <!-- 추천 컬러 팔레트 -->
-        <div class="palette-section">
-          <h4>어울리는 컬러 팔레트</h4>
-          <div class="palette" id="palette-best"></div>
-        </div>
-        <div class="palette-section">
-          <h4>피해야 할 컬러</h4>
-          <div class="palette palette-avoid" id="palette-worst"></div>
-        </div>
-
-        <!-- 퍼스널컬러 맞춤 화장품 추천 (실제 제품) -->
-        <div class="products-section">
-          <h4 id="color-product-title">💄 어울리는 화장품 추천</h4>
-          <p class="product-reason" id="color-product-reason" style="font-size:0.9rem; color:var(--text-muted); margin-bottom:12px; line-height:1.4;"></p>
-          <div class="products-grid" id="color-products"></div>
-          <p class="products-empty hidden" id="color-products-empty">네이버 쇼핑 API 연동 후 실제 제품이 표시됩니다.</p>
-        </div>
-      </div>
-
-      <!-- 피부 상태 결과 -->
-      <div class="card card-skin" id="skin-card">
-        <div class="card-badge">Skin Analysis</div>
-
-        <div class="skin-hero">
-          <div class="score-circle" id="score-circle">
-            <svg viewBox="0 0 120 120">
-              <circle class="track" cx="60" cy="60" r="50" />
-              <circle class="fill" cx="60" cy="60" r="50" id="score-arc" />
-            </svg>
-            <div class="score-value">
-              <span id="score-number">0</span>
-              <small>점</small>
+        <!-- 퍼스널컬러 결과 -->
+        <div class="card card-color" id="color-card">
+          <div class="card-badge">Personal Color</div>
+          <div class="color-hero">
+            <span class="color-emoji" id="color-emoji"></span>
+            <div>
+              <h3 id="color-season" class="color-season"></h3>
+              <p id="color-subtitle" class="color-subtitle"></p>
             </div>
           </div>
-          <div class="skin-type-info">
-            <span class="skin-emoji" id="skin-emoji"></span>
-            <h3 id="skin-type-name"></h3>
-            <p id="skin-type-desc"></p>
+          <p id="color-description" class="card-desc"></p>
+
+          <!-- 분석 근거 -->
+          <div class="reasoning-list" id="reasoning-list"></div>
+
+          <!-- 추천 컬러 팔레트 -->
+          <div class="palette-section">
+            <h4>어울리는 컬러 팔레트</h4>
+            <div class="palette" id="palette-best"></div>
+          </div>
+          <div class="palette-section">
+            <h4>피해야 할 컬러</h4>
+            <div class="palette palette-avoid" id="palette-worst"></div>
+          </div>
+
+          <!-- 퍼스널컬러 맞춤 화장품 추천 (실제 제품) -->
+          <div class="products-section">
+            <h4 id="color-product-title">💄 어울리는 화장품 추천</h4>
+            <div class="products-grid" id="color-products"></div>
+            <p class="products-empty hidden" id="color-products-empty">네이버 쇼핑 API 연동 후 실제 제품이 표시됩니다.</p>
           </div>
         </div>
 
-        <!-- 상세 항목 바 -->
-        <div class="metrics-grid" id="metrics-grid"></div>
+        <!-- 피부 상태 결과 -->
+        <div class="card card-skin" id="skin-card">
+          <div class="card-badge">Skin Analysis</div>
 
-        <!-- 추천 -->
-        <!-- 스킨케어 제품 추천 (실제 제품) -->
-        <div class="products-section">
-          <h4 id="skin-product-title">🧴 추천 상품항목</h4>
-          <p class="product-reason" id="skin-product-reason" style="font-size:0.9rem; color:var(--text-muted); margin-bottom:12px; line-height:1.4;"></p>
-          <div class="products-grid" id="skin-products"></div>
-          <p class="products-empty hidden" id="skin-products-empty">네이버 쇼핑 API 연동 후 실제 제품이 표시됩니다.</p>
+          <div class="skin-hero">
+            <div class="score-circle" id="score-circle">
+              <svg viewBox="0 0 120 120">
+                <circle class="track" cx="60" cy="60" r="50" />
+                <circle class="fill" cx="60" cy="60" r="50" id="score-arc" />
+              </svg>
+              <div class="score-value">
+                <span id="score-number">0</span>
+                <small>점</small>
+              </div>
+            </div>
+            <div class="skin-type-info">
+              <span class="skin-emoji" id="skin-emoji"></span>
+              <h3 id="skin-type-name"></h3>
+              <p id="skin-type-desc"></p>
+            </div>
+          </div>
+
+          <!-- 상세 항목 바 -->
+          <div class="metrics-grid" id="metrics-grid"></div>
+
+          <!-- 추천 -->
+          <!-- 스킨케어 제품 추천 (실제 제품) -->
+          <div class="products-section">
+            <h4 id="skin-product-title">🧴 추천 상품항목</h4>
+            <div class="products-grid" id="skin-products"></div>
+            <p class="products-empty hidden" id="skin-products-empty">네이버 쇼핑 API 연동 후 실제 제품이 표시됩니다.</p>
+          </div>
         </div>
-      </div>
       </div> <!-- End of results-grid -->
 
 

@@ -62,20 +62,21 @@ def run_diagnosis():
 
     color_products = []
     skin_products = []
+    
     # result["personal_color"] 키일 수도 있으니 안전하게 가져옴 (방금 짠 AI Analyzer 참고)
     color_result = result.get("color_result", {})
     if not color_result:
         # 혹시 ai_analyzer 변경으로 키가 personal_color로 바뀐 경우
         color_result = result.get("personal_color", {})
 
-    if naver.is_available:
         if color_result:
             color_products = naver.search_color_products(
                 color_result.get("season_key", "")
             )
-        skin_products = naver.search_skin_products(
-            result.get("conditions", {})
-        )
+            
+        skin_cond = result.get("conditions", {})
+        if skin_cond:
+             skin_products = naver.search_skin_products(skin_cond)
 
     # ── 4. 진단 결과 DB 저장: tb_sk_diagnosis 테이블에 누락된 컬럼(tone 등) 추가 ──
     session_id = str(uuid.uuid4())

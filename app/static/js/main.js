@@ -346,23 +346,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ── 3. 쇼핑 추천 영역 ──
-    if (data.product_reasons) {
-      const ct = document.getElementById("color-product-title");
-      const st = document.getElementById("skin-product-title");
-      const cd = document.getElementById("color-product-reason");
-      const sd = document.getElementById("skin-product-reason");
-
-      if (ct && data.product_reasons.color_product_title) ct.textContent = data.product_reasons.color_product_title;
-      if (st && data.product_reasons.skin_product_title) st.textContent = data.product_reasons.skin_product_title;
-      
-      if (cd && data.product_reasons.color_products) cd.innerHTML = `<span style="font-weight:700; color:var(--primary);">💡 추천 사유 및 제품 설명:</span> ${data.product_reasons.color_products}`;
-      if (sd && data.product_reasons.skin_products) sd.innerHTML = `<span style="font-weight:700; color:var(--primary);">💡 추천 사유 및 제품 설명:</span> ${data.product_reasons.skin_products}`;
-    }
-    
-    if (data.color_products) {
+    if (data.color_products && data.color_products.length > 0) {
       renderProducts(data.color_products, "color-products", "color-products-empty");
     }
-    if (data.skin_products) {
+
+    if (data.skin_products && data.skin_products.length > 0) {
       renderProducts(data.skin_products, "skin-products", "skin-products-empty");
     }
   }
