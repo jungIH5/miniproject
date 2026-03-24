@@ -33,15 +33,14 @@ def analyze():
             sk = result.get("skin_analysis") or {}
             with engine.begin() as conn:
                 conn.execute(text("""
-                    INSERT INTO diagnosis_results
-                        (session_id, personal_color_season, skin_type, overall_score, analysis_method)
-                    VALUES (:sid, :color, :skin, :score, :method)
+                    INSERT INTO tb_sk_diagnosis
+                        (mbr_id, color_note, type, type_score)
+                    VALUES (:mid, :color, :skin, :score)
                 """), {
-                    "sid": str(session.get("user_id")),
+                    "mid": session.get("user_id"),
                     "color": pc.get("season", ""),
                     "skin": (sk.get("skin_type") or {}).get("name", ""),
-                    "score": result.get("overall_score", 0),
-                    "method": result.get("analysis_method", "basic")
+                    "score": int(result.get("overall_score", 0))
                 })
         except Exception as e:
             current_app.logger.error(f"진단 결과 저장 오류: {e}")
@@ -57,14 +56,21 @@ def profile_history():
         engine = current_app.extensions["db_engine"]
         with engine.connect() as conn:
             rows = conn.execute(text("""
-                SELECT id, personal_color_season, skin_type, overall_score, analysis_method, created_at
-                FROM diagnosis_results
-                WHERE session_id = :sid
+                SELECT 
+                    dgns_id, color_note, type, type_score, 
+                    tone, bright, chrome, moisture_score, balance_score, created_at
+                FROM tb_sk_diagnosis
+                WHERE mbr_id = :mid
                 ORDER BY created_at DESC
                 LIMIT 20
-            """), {"sid": str(session["user_id"])}).fetchall()
+            """), {"mid": session["user_id"]}).fetchall()
         return jsonify({"success": True, "history": [
-            {"id": r[0], "color": r[1], "skin": r[2], "score": r[3], "method": r[4], "date": str(r[5])}
+            {
+                "id": r[0], "color": r[1], "skin": r[2], "score": r[3],
+                "tone": r[4], "bright": r[5], "chrome": r[6],
+                "moisture": r[7], "balance": r[8],
+                "date": str(r[9])
+            }
             for r in rows
         ]})
     except Exception as e:

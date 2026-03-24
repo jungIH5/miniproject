@@ -166,6 +166,17 @@ document.addEventListener("DOMContentLoaded", () => {
     $uploadArea.classList.remove("hidden");
     $btnAnalyze.disabled = true;
     showSection($upload);
+    
+    // 다시 진단하기 시 AI 채팅 섹션 숨기기 및 채팅 초기화
+    const $aiSection = document.getElementById("ai-intro-section");
+    if ($aiSection) {
+      $aiSection.classList.add("hidden");
+      $aiSection.classList.remove("active");
+    }
+    // 채팅 상태 초기화 (필요시)
+    chatHistory = [];
+    chatGreeted = false;
+    if ($chatMessages) $chatMessages.innerHTML = "";
   });
 
   // ============================================================
@@ -207,6 +218,19 @@ document.addEventListener("DOMContentLoaded", () => {
       await new Promise((r) => setTimeout(r, 500));
       renderResults(data);
       showSection($result);
+      
+      // 진단 후 AI 채팅 섹션 노출
+      const $aiSection = document.getElementById("ai-intro-section");
+      if ($aiSection) {
+        $aiSection.classList.remove("hidden");
+        $aiSection.classList.add("active");
+        // 처음 노출될 때만 인사
+        if (!chatGreeted && $chatMessages) {
+            appendChatMessage("ai", "진단 결과를 바탕으로 도움을 드릴 준비가 되었습니다! 궁금하신 점이 있다면 언제든 물어보세요. ✨");
+            chatGreeted = true;
+        }
+      }
+      
       document.dispatchEvent(new Event("result-shown"));
     } catch (err) {
       clearInterval(stepTimer);
@@ -370,40 +394,15 @@ document.addEventListener("DOMContentLoaded", () => {
   // 제미나이 AI 챗봇 로직 (인라인 카드 + 슬라이드 패널 공용)
   // ============================================================
   // ============================================================
-  // AI 챗봇 — FAB + 위로 펼쳐지는 팝업
-  // ============================================================
-  const $chatWidget  = document.getElementById("chat-widget");
-  const $chatPopup   = document.getElementById("chat-modal");
-  const $btnOpenChat = document.getElementById("btn-open-chat");
-  const $chatClose   = document.getElementById("chat-close");
-  const $chatMessages = document.getElementById("chat-messages");
-  const $chatInput   = document.getElementById("chat-input");
-  const $btnSendChat = document.getElementById("btn-send-chat");
+  // ── AI 챗봇 — 임베디드 인터페이스 (기존 팝업 제거됨) ──
+  const $chatMessages = document.getElementById("chat-messages-embedded");
+  const $chatInput   = document.getElementById("chat-input-embedded");
+  const $btnSendChat = document.getElementById("btn-send-chat-embedded");
 
   let chatHistory = [];
   let chatGreeted = false;
 
-  // 결과 표시 시 FAB 등장
-  document.addEventListener("result-shown", () => {
-    $chatWidget?.classList.remove("hidden");
-  });
-
-  function openChatPopup() {
-    $chatPopup.classList.remove("hidden");
-    if (!chatGreeted) {
-      chatGreeted = true;
-      appendChatMessage("ai", "반갑습니다! AI 컨설턴트 벨라입니다. 진단 결과에 대해 궁금한 점을 물어보세요! ✨");
-    }
-    setTimeout(() => $chatInput?.focus(), 300);
-  }
-  function closeChatPopup() {
-    $chatPopup.classList.add("hidden");
-  }
-
-  $btnOpenChat?.addEventListener("click", () => {
-    $chatPopup.classList.contains("hidden") ? openChatPopup() : closeChatPopup();
-  });
-  $chatClose?.addEventListener("click", closeChatPopup);
+  // 초기 인사 로직은 진단 완료 후로 이동됨 (renderResults/showSection 부분)
 
   function appendChatMessage(type, text, recommendations = []) {
     if (!$chatMessages) return;
@@ -444,7 +443,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const colorSeason = document.getElementById("color-season")?.textContent || "모름";
     const skinType = document.getElementById("skin-type-name")?.textContent || "모름";
     const skinScore = document.getElementById("score-number")?.textContent || "0";
-    const contextText = `사용자의 진단 결과 - 퍼스널컬러: ${colorSeason}, 피부타입: ${skinType} (${skinScore}점)`;
+    
+    let contextText = `사용자의 현재 진단 결과 - 퍼스널컬러: ${colorSeason}, 피부타입: ${skinType} (${skinScore}점)`;
+    if (window.historySummary) {
+        contextText += `\n최근 진단 이력(과거->현재): ${window.historySummary}`;
+    }
 
     const $loadingMsg = document.createElement("div");
     $loadingMsg.className = "chat-msg chat-ai";

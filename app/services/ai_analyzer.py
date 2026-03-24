@@ -167,19 +167,55 @@ def chat(message: str, context: str = "", history: list = None) -> dict:
     api_key = current_app.config.get("GEMINI_API_KEY")
     if not api_key: return {"success": False, "error": "API Key missing"}
 
+    # ── [지침] ── #
+    system_prompt = f"""당신은 전문 뷰티 컨설턴트 '벨라'입니다. 
+    사용자의 진단 결과(컨텍스트: {context})를 바탕으로 따뜻하고 전문적인 상담을 제공하세요.
+    최근 진단 이력이 있다면 그 추이(수분 상승/하락 등)를 언급하여 공감을 이끌어내세요.
+    추천이 필요한 경우 답변 끝에 '[SEARCH: 검색어]'를 붙이세요. (일반 대화 시 금지)
+    """
+
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-flash-latest")
+        
+        # 안전 필터 비활성화 (뷰티 상담 중 부정적 단어 오인 방지)
+        from google.generativeai.types import HarmCategory, HarmBlockThreshold
+        safety_settings = {
+            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+        }
+
+        # system_instruction 지원되는 최신 방식 사용 (안정성 강화)
+        model = genai.GenerativeModel(
+            model_name="gemini-1.5-flash",
+            system_instruction=system_prompt,
+            safety_settings=safety_settings
+        )
+
         formatted_history = []
-        if not history:
-            system_prompt = f"전문 뷰티 컨설턴트 역할. 컨텍스트: {context}"
-            formatted_history.append({"role": "user", "parts": [system_prompt]})
-            formatted_history.append({"role": "model", "parts": ["준비되었습니다. 질문주세요!"]})
-        else:
+        if history:
+            # 최근 10개 메시지만 유지하여 토큰 절약 (할당량 관리용)
+            history = history[-10:]
             for item in history:
-                formatted_history.append({"role": item.get("role", "user"), "parts": [item.get("text", "")]})
+                role = "user" if item.get("role") == "user" else "model"
+                formatted_history.append({"role": role, "parts": [item.get("text", "")]})
+        
+        # 히스토리 순서 보장 (Gemini는 user-model-user 순서를 엄격히 요구함)
+        if formatted_history and formatted_history[-1]["role"] == "user":
+            formatted_history.pop() # 중복된 마지막 유저 메시지 방지
+            
         chat_session = model.start_chat(history=formatted_history)
         response = chat_session.send_message(message)
-        return {"success": True, "response": response.text}
+        
+        # 응답 텍스트 추출 시도 (안전 필터로 인해 내용이 비었을 경우 대비)
+        try:
+            ai_text = response.text
+        except ValueError:
+            # 안전 필터에 의한 차단 발생 시
+            ai_text = "죄송합니다. 요청하신 내용에 대해 벨라가 답변을 생성하는 데 어려움을 겪고 있어요. 다른 방식으로 질문해 주시겠어요?"
+
+        return {"success": True, "response": ai_text}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        print(f"[AI Chat Error] {e}") # 서버 로그 확인용
+        return {"success": False, "error": f"분석 서버 부하 또는 쿼터 제한이 발생했습니다. 잠시 후 다시 시도해 주세요. (상세: {str(e)[:50]}...)"}
