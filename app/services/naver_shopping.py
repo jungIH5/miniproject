@@ -85,9 +85,12 @@ class NaverShoppingAPI:
                 timeout=5,
             )
             resp.raise_for_status()
+            data = resp.json()
+            items_raw = data.get("items", [])
+            print(f"[NaverShopping] Query: {query}, Results: {len(items_raw)}")
 
             items = []
-            for item in resp.json().get("items", []):
+            for item in items_raw:
                 title = re.sub(r"</?b>", "", item.get("title", ""))
                 items.append({
                     "title": title,

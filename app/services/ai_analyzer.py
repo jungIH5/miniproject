@@ -51,8 +51,9 @@ def analyze_skin_and_color(image_file):
     _get_color_analyzer()
     local_color = _get_color_analyzer().analyze(image_bytes)
 
-    # ── 3단계: Gemini 비전으로 퍼스널컬러 보완 + 종합 조언 ──
-    gemini_color, ai_advice, shop_queries, product_reasons = _gemini_color_analysis_v2(image_bytes, skin_result)
+    # ── 3. Gemini 비전으로 퍼스널컬러 보완 + 종합 조언 ──
+    mime_type = getattr(image_file, 'content_type', 'image/jpeg')
+    gemini_color, ai_advice, shop_queries, product_reasons = _gemini_color_analysis_v2(image_bytes, skin_result, mime_type)
 
     # Gemini 성공 시 → Gemini 컬러 결과 사용, 실패 시 → 로컬 결과 유지
     color_result = gemini_color if gemini_color else local_color
@@ -73,7 +74,7 @@ def analyze_skin_and_color(image_file):
     return final_result
 
 
-def _gemini_color_analysis_v2(image_bytes, skin_result):
+def _gemini_color_analysis_v2(image_bytes, skin_result, mime_type="image/jpeg"):
     """Gemini 비전 API로 퍼스널컬러 + 종합 조언 + 쇼핑 검색어 생성"""
     api_key = current_app.config.get("GEMINI_API_KEY")
     if not api_key:
@@ -130,7 +131,7 @@ def _gemini_color_analysis_v2(image_bytes, skin_result):
 
         response = model.generate_content([
             prompt,
-            {"mime_type": "image/*", "data": image_bytes}
+            {"mime_type": mime_type, "data": image_bytes}
         ])
 
         ai_data_raw = response.text.replace("```json", "").replace("```", "").strip()
@@ -171,6 +172,13 @@ def chat(message: str, context: str = "", history: list = None) -> dict:
     system_prompt = f"""당신은 전문 뷰티 컨설턴트 '벨라'입니다. 
     사용자의 진단 결과(컨텍스트: {context})를 바탕으로 따뜻하고 전문적인 상담을 제공하세요.
     최근 진단 이력이 있다면 그 추이(수분 상승/하락 등)를 언급하여 공감을 이끌어내세요.
+
+    [상담 범위 제약]
+    당신은 오직 뷰티, 퍼스널 컬러, 피부 관리 및 화장품 추천과 관련된 질문에만 답변해야 합니다.
+    그 외의 주제(음식 추천, 일상 대화, 정치, 영화 등 서비스와 관련 없는 모든 주제)에 대해서는 
+    "죄송합니다. 저는 뷰티 전문 컨설턴트 벨라입니다! 뷰티와 피부 관리에 관련된 질문에 대해서만 도움을 드릴 수 있어요. ✨"
+    와 같이 정중하게 거절하고 다시 뷰티 관련 대화로 유도하세요.
+
     추천이 필요한 경우 답변 끝에 '[SEARCH: 검색어]'를 붙이세요. (일반 대화 시 금지)
     """
 
@@ -188,7 +196,7 @@ def chat(message: str, context: str = "", history: list = None) -> dict:
 
         # system_instruction 지원되는 최신 방식 사용 (안정성 강화)
         model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash",
+            model_name="gemini-flash-latest",
             system_instruction=system_prompt,
             safety_settings=safety_settings
         )
