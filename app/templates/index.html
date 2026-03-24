@@ -12,64 +12,277 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 
-  <link rel="stylesheet" href="/static/css/style.css" />
+  <link rel="stylesheet" href="/static/css/style.css?v=2.7" />
 </head>
 
 <body>
-    <!-- ── 사용자 정보 바 (고정) ── -->
-    {% if session.get('username') %}
-    <div class="user-bar">
-        <div class="user-info" id="user-info-bar" style="cursor: pointer;" title="내 정보 보기">
-            <div class="user-avatar">{{ session['username'][0] }}</div>
-            <span class="user-name">{{ session['username'] }}님 반가워요! ✨</span>
-        </div>
-        <a href="/logout" class="btn-logout" title="로그아웃">로그아웃</a>
+  <!-- ====== 네비게이션 ====== -->
+  <nav class="app-nav">
+    <div class="nav-left">
+      <a href="/" class="nav-logo">
+        <img src="/static/img/logo.png" class="nav-logo-img" alt="Beuty Inside" />
+      </a>
     </div>
-
-    <!-- ── 프로필 모달 ── -->
-    <div id="profile-modal" class="profile-modal">
-        <div class="profile-overlay" id="profile-overlay"></div>
-        <div class="profile-content">
-            <button class="profile-close" id="profile-close">&times;</button>
-            <div class="profile-header">
-                <div class="profile-avatar-lg">{{ session['username'][0] }}</div>
-                <h3>내 프로필 정보</h3>
-            </div>
-            <div class="profile-info-group">
-                <div class="profile-info-item">
-                    <span class="profile-info-label">사용자 이름</span>
-                    <div class="profile-info-value">{{ session['username'] }}</div>
-                </div>
-                <div class="profile-info-item">
-                    <span class="profile-info-label">이메일 계정</span>
-                    <div class="profile-info-value">{{ session.get('user_email', '정보 없음') }}</div>
-                </div>
-            </div>
+    <div class="nav-right">
+      {% if session.get('username') %}
+        <div class="nav-user-info" id="user-info-bar" title="내 정보 보기">
+          <div class="user-avatar" id="nav-avatar">
+            {% if session.get('user_photo') %}
+              <img src="{{ session['user_photo'] }}" alt="" id="nav-avatar-img" />
+            {% else %}
+              <span id="nav-avatar-initials">{{ session['username'][0] }}</span>
+              <img src="" alt="" id="nav-avatar-img" style="display:none;" />
+            {% endif %}
+          </div>
+          <span class="user-name" id="nav-user-name">{{ session['username'] }}님</span>
         </div>
+        <a href="/logout" class="btn-logout">로그아웃</a>
+      {% else %}
+        <a href="/login" class="btn-logout">로그인</a>
+      {% endif %}
     </div>
-    {% endif %}
+  </nav>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const userInfoBar = document.getElementById('user-info-bar');
-            const profileModal = document.getElementById('profile-modal');
-            const profileClose = document.getElementById('profile-close');
-            const profileOverlay = document.getElementById('profile-overlay');
+  <!-- ── 프로필 모달 ── -->
+  {% if session.get('username') %}
+  <div id="profile-modal" class="profile-modal">
+    <div class="profile-overlay" id="profile-overlay"></div>
+    <div class="profile-content">
+      <button class="profile-close" id="profile-close">&times;</button>
 
-            if (userInfoBar) {
-                userInfoBar.addEventListener('click', () => {
-                    profileModal.classList.add('active');
-                });
-            }
+      <!-- 헤더 -->
+      <div class="profile-header">
+        <div class="profile-avatar-lg" id="profile-avatar-lg">
+          {% if session.get('user_photo') %}
+            <img src="{{ session['user_photo'] }}" alt="프로필" id="avatar-img" />
+          {% else %}
+            <span id="avatar-initials">{{ session['username'][0] }}</span>
+            <img src="" alt="프로필" id="avatar-img" style="display:none;" />
+          {% endif %}
+          <div class="avatar-upload-overlay" id="avatar-upload-btn" title="사진 변경">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+              <circle cx="12" cy="13" r="4"/>
+            </svg>
+          </div>
+          <input type="file" id="avatar-file-input" accept="image/*" style="display:none;" />
+        </div>
+        <h3 id="profile-header-name">{{ session['username'] }}님</h3>
+        <p class="profile-email-sub" id="profile-header-email">{{ session.get('user_email', '') }}</p>
+      </div>
 
-            const closeModal = () => {
-                profileModal.classList.remove('active');
-            };
+      <!-- 탭 -->
+      <div class="profile-tabs">
+        <button class="profile-tab active" data-tab="info">프로필</button>
+        <button class="profile-tab" data-tab="history">과거 이력</button>
+        <button class="profile-tab" data-tab="edit">회원정보수정</button>
+      </div>
 
-            if (profileClose) profileClose.addEventListener('click', closeModal);
-            if (profileOverlay) profileOverlay.addEventListener('click', closeModal);
+      <!-- 탭: 프로필 -->
+      <div class="profile-tab-content active" id="tab-info">
+        <div class="profile-info-group">
+          <div class="profile-info-item">
+            <span class="profile-info-label">사용자 이름</span>
+            <div class="profile-info-value">{{ session['username'] }}</div>
+          </div>
+          <div class="profile-info-item">
+            <span class="profile-info-label">이메일 계정</span>
+            <div class="profile-info-value">{{ session.get('user_email', '정보 없음') }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 탭: 과거 이력 -->
+      <div class="profile-tab-content" id="tab-history">
+        <div id="history-loading" style="text-align:center; padding:20px; color:var(--text-muted);">불러오는 중...</div>
+        <table class="history-table hidden" id="history-table">
+          <thead>
+            <tr>
+              <th>날짜</th>
+              <th>퍼스널컬러</th>
+              <th>피부타입</th>
+              <th>점수</th>
+            </tr>
+          </thead>
+          <tbody id="history-tbody"></tbody>
+        </table>
+        <div class="history-empty hidden" id="history-empty">아직 진단 이력이 없어요. 분석을 시작해보세요! ✨</div>
+      </div>
+
+      <!-- 탭: 회원정보수정 -->
+      <div class="profile-tab-content" id="tab-edit">
+        <div class="edit-form">
+          <div class="edit-form-group">
+            <label>아이디 (변경 불가)</label>
+            <input type="text" value="{{ session['username'] }}" disabled class="input-disabled" />
+          </div>
+          <div class="edit-form-group">
+            <label>이름 변경</label>
+            <input type="text" id="edit-name" placeholder="새 이름 입력 (한글 가능)" />
+          </div>
+          <div class="edit-form-group">
+            <label>이메일 변경</label>
+            <input type="email" id="edit-email" value="{{ session.get('user_email', '') }}" placeholder="이메일 입력" />
+          </div>
+          <div class="edit-form-group">
+            <label>비밀번호 변경</label>
+            <input type="password" id="edit-password" placeholder="변경할 비밀번호 입력" />
+          </div>
+          <button id="btn-profile-save" class="btn btn-primary" style="width:100%; margin-top:8px;">저장하기</button>
+          <div id="edit-msg" style="margin-top:10px; font-size:0.85rem; text-align:center;"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  {% endif %}
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const profileModal  = document.getElementById('profile-modal');
+      const profileClose  = document.getElementById('profile-close');
+      const profileOverlay = document.getElementById('profile-overlay');
+      const userInfoBar   = document.getElementById('user-info-bar');
+
+      const openProfile = () => {
+        profileModal.classList.add('active');
+        loadHistory();
+      };
+      const closeProfile = () => {
+        profileModal.classList.remove('active');
+        historyLoaded = false; // 모달 닫을 때 리셋 → 다음에 열면 최신 이력 로드
+      };
+
+      if (userInfoBar)    userInfoBar.addEventListener('click', openProfile);
+      if (profileClose)   profileClose.addEventListener('click', closeProfile);
+      if (profileOverlay) profileOverlay.addEventListener('click', closeProfile);
+
+      // 탭 전환
+      document.querySelectorAll('.profile-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          document.querySelectorAll('.profile-tab').forEach(t => t.classList.remove('active'));
+          document.querySelectorAll('.profile-tab-content').forEach(c => c.classList.remove('active'));
+          tab.classList.add('active');
+          document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+          if (tab.dataset.tab === 'history') loadHistory();
         });
-    </script>
+      });
+
+      // 과거 이력 로드
+      let historyLoaded = false;
+      async function loadHistory() {
+        if (historyLoaded) return;
+        const loadingEl = document.getElementById('history-loading');
+        const tableEl   = document.getElementById('history-table');
+        const emptyEl   = document.getElementById('history-empty');
+        // 초기화
+        loadingEl.classList.remove('hidden');
+        loadingEl.textContent = '불러오는 중...';
+        tableEl.classList.add('hidden');
+        emptyEl.classList.add('hidden');
+        try {
+          const res = await fetch('/api/profile/history');
+          const data = await res.json();
+          loadingEl.classList.add('hidden');
+          if (data.success && data.history && data.history.length > 0) {
+            const tbody = document.getElementById('history-tbody');
+            tbody.innerHTML = data.history.map(r => `
+              <tr>
+                <td>${r.date ? new Date(r.date).toLocaleDateString('ko-KR') : '-'}</td>
+                <td><span class="history-badge color">${r.color || '-'}</span></td>
+                <td>${r.skin || '-'}</td>
+                <td><span class="history-score">${r.score || 0}점</span></td>
+              </tr>`).join('');
+            tableEl.classList.remove('hidden');
+          } else {
+            emptyEl.classList.remove('hidden');
+          }
+          historyLoaded = true;
+        } catch(e) {
+          loadingEl.classList.remove('hidden');
+          loadingEl.textContent = '불러오기 실패. 다시 시도해주세요.';
+        }
+      }
+
+      // 아바타 업로드
+      const avatarUploadBtn = document.getElementById('avatar-upload-btn');
+      const avatarFileInput = document.getElementById('avatar-file-input');
+      if (avatarUploadBtn) {
+        avatarUploadBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          avatarFileInput.click();
+        });
+      }
+      if (avatarFileInput) {
+        avatarFileInput.addEventListener('change', async () => {
+          const file = avatarFileInput.files[0];
+          if (!file) return;
+          // 업로드 중 오버레이에 로딩 표시
+          const overlay = document.getElementById('avatar-upload-btn');
+          if (overlay) overlay.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>';
+          const formData = new FormData();
+          formData.append('avatar', file);
+          try {
+            const res = await fetch('/api/profile/avatar', { method: 'POST', body: formData });
+            const data = await res.json();
+            if (data.success) {
+              const url = data.photo_url + '?t=' + Date.now();
+              // 프로필 모달 아바타 갱신
+              const img      = document.getElementById('avatar-img');
+              const initials = document.getElementById('avatar-initials');
+              img.src = url; img.style.display = 'block';
+              if (initials) initials.style.display = 'none';
+              // 네비게이션 아바타 갱신
+              const navImg      = document.getElementById('nav-avatar-img');
+              const navInitials = document.getElementById('nav-avatar-initials');
+              navImg.src = url; navImg.style.display = 'block';
+              if (navInitials) navInitials.style.display = 'none';
+            } else {
+              alert('업로드 실패: ' + data.error);
+            }
+          } catch(e) {
+            alert('업로드 중 오류가 발생했습니다.');
+          } finally {
+            // 오버레이 아이콘 복원
+            if (overlay) overlay.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>';
+            avatarFileInput.value = '';
+          }
+        });
+      }
+
+      // 회원정보 수정
+      document.getElementById('btn-profile-save')?.addEventListener('click', async () => {
+        const name     = document.getElementById('edit-name').value.trim();
+        const email    = document.getElementById('edit-email').value.trim();
+        const password = document.getElementById('edit-password').value.trim();
+        const msg = document.getElementById('edit-msg');
+        if (!name && !email && !password) { msg.style.color='var(--danger)'; msg.textContent='변경할 내용을 입력해주세요.'; return; }
+        const res = await fetch('/api/profile/update', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({name, email, password})
+        });
+        const data = await res.json();
+        if (data.success) {
+          msg.style.color = 'var(--success)';
+          msg.textContent = '저장되었습니다! ✅';
+          // 이름 변경 시 화면 반영
+          if (name) {
+            const headerName = document.getElementById('profile-header-name');
+            const navName = document.getElementById('nav-user-name');
+            if (headerName) headerName.textContent = name + '님';
+            if (navName) navName.textContent = name + '님';
+          }
+          if (email) {
+            const headerEmail = document.getElementById('profile-header-email');
+            if (headerEmail) headerEmail.textContent = email;
+          }
+        } else {
+          msg.style.color = 'var(--danger)';
+          msg.textContent = '오류: ' + data.error;
+        }
+      });
+    });
+  </script>
   <!-- ====== 히어로 / 업로드 섹션 ====== -->
   <section id="upload-section" class="section active">
     <div class="container">
@@ -141,12 +354,13 @@
 
   <!-- ====== 결과 섹션 ====== -->
   <section id="result-section" class="section">
-    <div class="container">
+    <div class="container container-wide">
       <header class="result-header">
         <h2>진단 결과</h2>
         <button id="btn-retry" class="btn btn-ghost" type="button">다시 진단하기</button>
       </header>
 
+      <div class="results-grid">
       <!-- 퍼스널컬러 결과 -->
       <div class="card card-color" id="color-card">
         <div class="card-badge">Personal Color</div>
@@ -174,7 +388,8 @@
 
         <!-- 퍼스널컬러 맞춤 화장품 추천 (실제 제품) -->
         <div class="products-section">
-          <h4>💄 어울리는 화장품 추천</h4>
+          <h4 id="color-product-title">💄 어울리는 화장품 추천</h4>
+          <p class="product-reason" id="color-product-reason" style="font-size:0.9rem; color:var(--text-muted); margin-bottom:12px; line-height:1.4;"></p>
           <div class="products-grid" id="color-products"></div>
           <p class="products-empty hidden" id="color-products-empty">네이버 쇼핑 API 연동 후 실제 제품이 표시됩니다.</p>
         </div>
@@ -208,21 +423,18 @@
         <!-- 추천 -->
         <!-- 스킨케어 제품 추천 (실제 제품) -->
         <div class="products-section">
-          <h4>🧴 추천 스킨케어 제품</h4>
+          <h4 id="skin-product-title">🧴 추천 상품항목</h4>
+          <p class="product-reason" id="skin-product-reason" style="font-size:0.9rem; color:var(--text-muted); margin-bottom:12px; line-height:1.4;"></p>
           <div class="products-grid" id="skin-products"></div>
           <p class="products-empty hidden" id="skin-products-empty">네이버 쇼핑 API 연동 후 실제 제품이 표시됩니다.</p>
         </div>
       </div>
+      </div> <!-- End of results-grid -->
+
+
 
       <!-- 분석 방법 안내 -->
       <div class="analysis-method-note" id="method-note"></div>
-
-      <!-- AI 상담 버튼 -->
-      <div class="chat-action-section">
-        <button id="btn-open-chat" class="btn btn-primary" type="button" style="width: 100%; margin-top: 10px;">
-          ✨ AI 뷰티 컨설턴트에게 상담받기
-        </button>
-      </div>
     </div>
   </section>
 
@@ -254,25 +466,37 @@
     <canvas id="camera-canvas" hidden></canvas>
   </div>
 
-  <!-- ====== 제미나이 AI 챗봇 모달 ====== -->
-  <div id="chat-modal" class="camera-modal hidden">
-    <div class="camera-overlay" id="chat-overlay"></div>
-    <div class="chat-container">
+  <!-- ====== AI 상담 FAB + 팝업 ====== -->
+  <div id="chat-widget" class="chat-widget hidden">
+    <!-- 팝업 (FAB 위로 펼쳐짐) -->
+    <div id="chat-modal" class="chat-popup hidden">
       <div class="chat-header">
         <div class="chat-title">
-          <span style="font-size: 1.2rem;">✨</span> 
-          <span>AI 뷰티 컨설턴트</span>
+          <div class="chat-avatar-circle">
+            <img src="/static/img/logo.png" alt="logo" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />
+          </div>
+          <div>
+            <div style="font-weight:700; font-size:0.95rem;">AI 뷰티 컨설턴트</div>
+            <div style="font-size:0.72rem; opacity:0.85;">벨라와 상담하세요</div>
+          </div>
         </div>
         <button id="chat-close" class="btn btn-ghost" type="button" aria-label="닫기">✕</button>
       </div>
-      <div class="chat-messages" id="chat-messages">
-        <!-- 메시지가 여기에 동적으로 추가됩니다 -->
-      </div>
+      <div class="chat-messages" id="chat-messages"></div>
       <div class="chat-input-area">
-        <input type="text" id="chat-input" class="file-label" style="flex:1; cursor:text" placeholder="궁금한 점을 물어보세요! (예: 봄웜한테 어울리는 염색 추천해줘)" />
-        <button id="btn-send-chat" class="btn btn-primary" style="padding: 12px 16px;">전송</button>
+        <input type="text" id="chat-input" class="chat-text-input" placeholder="궁금한 점을 물어보세요!" />
+        <button id="btn-send-chat" class="chat-send-btn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" width="18" height="18">
+            <path d="M22 2L11 13M22 2L15 22 11 13 2 9l20-7z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
       </div>
     </div>
+    <!-- FAB 버튼 -->
+    <button id="btn-open-chat" class="chat-fab" type="button" aria-label="AI 뷰티 상담">
+      <span class="chat-fab-icon">✨</span>
+      <span class="chat-fab-label">AI 상담</span>
+    </button>
   </div>
 
   <!-- ====== 푸터 ====== -->
@@ -280,7 +504,7 @@
     <p>© 2026 Beauty Consulting Team · AI 기반 분석 결과는 의학적 진단을 대체하지 않습니다.</p>
   </footer>
 
-  <script src="/static/js/main.js"></script>
+  <script src="/static/js/main.js?v=2.1"></script>
 </body>
 
 </html>

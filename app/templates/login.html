@@ -7,10 +7,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/static/css/style.css" />
+    <link rel="stylesheet" href="/static/css/style.css?v=2.7" />
     <style>
         .auth-container {
-            min-height: 100vh;
+            min-height: calc(100vh - 96px);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -97,7 +97,17 @@
     </style>
 </head>
 <body>
-    <div class="auth-container">
+  <nav class="app-nav">
+    <div class="nav-left">
+      <a href="/" class="nav-logo">
+        <img src="/static/img/logo.png" class="nav-logo-img" alt="Beuty Inside" />
+      </a>
+    </div>
+    <div class="nav-right">
+      <a href="/signup" class="btn-logout">회원가입</a>
+    </div>
+  </nav>
+  <div class="auth-container">
         <div class="auth-card">
             <div class="auth-logo">✨</div>
             <div class="auth-header">
@@ -165,6 +175,6 @@
                 계정이 없으신가요? <a href="/signup">회원가입</a>
             </div>
         </div>
-    </div>
+  </div>
 </body>
 </html>
