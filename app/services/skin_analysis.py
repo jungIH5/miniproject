@@ -10,6 +10,8 @@ CNN 모델(MobileNetV2) + OpenCV + MediaPipe 기반 피부 상태 진단
 5. Gray World 조명 보정 — 형광등/자연광 등 조명 환경 차이 제거
 6. CNN 확신도 기반 가중 평균 — 확신도 50% 미만 시 CNN+OpenCV 블렌딩
 7. CNN 진단 결과 내부 로그 전환 — 사용자에게 기술 수치 미노출
+8. OpenCV Cascade 얼굴 감지 검증 — 얼굴 없는 사진 분석 차단 (Docker 호환)
+9. fallback 개선 — MediaPipe 실패 시 Cascade 감지 영역 사용
 """
 
 import os
@@ -20,7 +22,7 @@ import mediapipe as mp
 import numpy as np
 import torch
 import torch.nn as nn
-from PIL import Image, ImageFilter
+from PIL import Image
 from torchvision import models, transforms
 
 
@@ -70,8 +72,8 @@ class SkinAnalyzer:
                 self.face_mesh = self.mp_face_mesh.FaceMesh(
                     static_image_mode=True, max_num_faces=1, refine_landmarks=False
                 )
-        except Exception as e:
-            print("MediaPipe FaceMesh initialization failed:", e)
+        except Exception:
+            pass  # MediaPipe 미지원 환경 → OpenCV Cascade로 대체
 
     def extract_skin_region_mp(self, frame_bgr, landmarks):
         """MediaPipe 랜드마크로 볼 영역 크롭"""
@@ -304,9 +306,7 @@ class SkinAnalyzer:
 
             analysis_method = "deep_learning_api" if cnn_trouble_label else "basic_image_analysis"
 
-            # [개선] CNN 결과는 내부 로그용으로만 기록, 사용자에게는 자연스러운 멘트만 노출
-            if cnn_trouble_label:
-                print(f"[CNN] 트러블 진단: {cnn_trouble_label} (확신도 {cnn_trouble_confidence*100:.1f}%)")
+            # [개선] CNN 결과는 사용자에게 미노출 (자연스러운 멘트만 표시)
 
             return {
                 "success": True,

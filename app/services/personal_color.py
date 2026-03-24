@@ -8,6 +8,8 @@
 3. LAB 색공간 기반 언더톤 판별 (a값+b값 종합)
 4. HSV 피부색 마스킹 — 비피부 픽셀 제외
 5. 이상치 제거 (상하 10% 트리밍)
+6. OpenCV Cascade 얼굴 감지 검증 — 얼굴 없는 사진 분석 차단
+7. fallback 개선 — MediaPipe 실패 시 Cascade 감지 영역 사용
 """
 
 from io import BytesIO
